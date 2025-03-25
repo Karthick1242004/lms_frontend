@@ -26,6 +26,7 @@ export interface Module {
 export interface Lesson {
   title: string
   duration: string
+  videoPath?: string
 }
 
 export interface Resource {

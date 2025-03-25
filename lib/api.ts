@@ -5,7 +5,6 @@ const courseImages = [
   "https://media.istockphoto.com/id/1290864946/photo/e-learning-education-concept-learning-online.jpg?s=1024x1024&w=is&k=20&c=jp1aegIi9CQLqGAOKPQbOHlEgsD_HtYgKoz4KCKRV18="
 ]
 
-// Mock data for courses
 const mockCourses: Course[] = [
   {
     id: "1",
@@ -35,10 +34,26 @@ const mockCourses: Course[] = [
         description: "Learn the basics of HTML markup and document structure",
         duration: "1 week",
         lessons: [
-          { title: "Introduction to HTML", duration: "45 min" },
-          { title: "HTML Document Structure", duration: "1 hour" },
-          { title: "HTML Elements and Attributes", duration: "1.5 hours" },
-          { title: "HTML Forms", duration: "1 hour" },
+          { 
+            title: "Introduction to HTML", 
+            duration: "45 min",
+            videoPath: "/video/HTML/HTML Crash Course In 30 Minutes.mp4"
+          },
+          { 
+            title: "HTML Document Structure", 
+            duration: "1 hour",
+            videoPath: "/video/HTML/HTML Crash Course In 30 Minutes.mp4"
+          },
+          { 
+            title: "HTML Elements and Attributes", 
+            duration: "1.5 hours",
+            videoPath: "/video/HTML/HTML Crash Course In 30 Minutes.mp4"
+          },
+          { 
+            title: "HTML Forms", 
+            duration: "1 hour",
+            videoPath: "/video/HTML/HTML Crash Course In 30 Minutes.mp4"
+          },
         ],
       },
       {
@@ -46,10 +61,26 @@ const mockCourses: Course[] = [
         description: "Learn how to style web pages with CSS",
         duration: "2 weeks",
         lessons: [
-          { title: "CSS Selectors", duration: "1 hour" },
-          { title: "Box Model and Layout", duration: "1.5 hours" },
-          { title: "Flexbox and Grid", duration: "2 hours" },
-          { title: "Responsive Design", duration: "1.5 hours" },
+          { 
+            title: "CSS Selectors", 
+            duration: "1 hour",
+            videoPath: "/video/CSS/CSS in 5 minutes.mp4"
+          },
+          { 
+            title: "CSS Basics", 
+            duration: "1.5 hours",
+            videoPath: "/video/CSS/CSS in 5 minutes.mp4"
+          },
+          { 
+            title: "CSS Layout", 
+            duration: "2 hours",
+            videoPath: "/video/CSS/CSS in 5 minutes.mp4"
+          },
+          { 
+            title: "Responsive Design with CSS", 
+            duration: "1.5 hours",
+            videoPath: "/video/CSS/CSS in 5 minutes.mp4"
+          },
         ],
       },
       {
@@ -57,10 +88,26 @@ const mockCourses: Course[] = [
         description: "Introduction to programming with JavaScript",
         duration: "3 weeks",
         lessons: [
-          { title: "Variables and Data Types", duration: "1 hour" },
-          { title: "Functions and Control Flow", duration: "1.5 hours" },
-          { title: "DOM Manipulation", duration: "2 hours" },
-          { title: "Events and Event Handling", duration: "1.5 hours" },
+          { 
+            title: "Variables and Data Types in JavaScript", 
+            duration: "1 hour",
+            videoPath: "/video/JavaScript/Learn JAVASCRIPT in just 5 MINUTES (2020).mp4"
+          },
+          { 
+            title: "JavaScript Functions", 
+            duration: "1.5 hours",
+            videoPath: "/video/JavaScript/Learn JAVASCRIPT in just 5 MINUTES (2020).mp4"
+          },
+          { 
+            title: "DOM Manipulation with JavaScript", 
+            duration: "2 hours",
+            videoPath: "/video/JavaScript/Learn JAVASCRIPT in just 5 MINUTES (2020).mp4"
+          },
+          { 
+            title: "JavaScript Events", 
+            duration: "1.5 hours",
+            videoPath: "/video/JavaScript/Learn JAVASCRIPT in just 5 MINUTES (2020).mp4"
+          },
         ],
       },
     ],
@@ -323,16 +370,16 @@ const mockCourses: Course[] = [
   },
 ]
 
-// Simulate API calls with delays
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export async function fetchCourses(): Promise<Course[]> {
-  await delay(1000) // Simulate network delay
+  await delay(1000)
   return mockCourses
 }
 
 export async function getCourseById(id: string): Promise<Course | undefined> {
-  await delay(800) // Simulate network delay
+  await delay(800) 
   return mockCourses.find((course) => course.id === id)
 }
 

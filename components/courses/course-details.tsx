@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { useStore } from "@/lib/store"
-import type { Course } from "@/lib/types"
-import { CheckCircle, Clock, Users } from "lucide-react"
+import type { Course, Lesson } from "@/lib/types"
+import { CheckCircle, Clock, PlayCircle, Users } from "lucide-react"
+import LessonVideo from "./lesson-video"
 
 interface CourseDetailsProps {
   course: Course
@@ -18,6 +19,11 @@ interface CourseDetailsProps {
 
 export default function CourseDetails({ course }: CourseDetailsProps) {
   const [activeTab, setActiveTab] = useState("overview")
+  const [selectedLesson, setSelectedLesson] = useState<{
+    moduleIndex: number;
+    lessonIndex: number;
+    title: string;
+  } | null>(null)
   const router = useRouter()
   const { toast } = useToast()
   const { enrolledCourses, enrollInCourse } = useStore()
@@ -31,6 +37,95 @@ export default function CourseDetails({ course }: CourseDetailsProps) {
       title: "Enrolled Successfully",
       description: `You have been enrolled in ${course.title}`,
     })
+  }
+  
+  const handleLessonClick = (moduleIndex: number, lessonIndex: number, title: string) => {
+    setSelectedLesson({
+      moduleIndex,
+      lessonIndex,
+      title,
+    })
+  }
+  
+  const handleNavigateLesson = (direction: 'next' | 'previous') => {
+    if (!selectedLesson || !course.syllabus) return
+    
+    const { moduleIndex, lessonIndex } = selectedLesson
+    const currentModule = course.syllabus[moduleIndex]
+    
+    if (direction === 'next') {
+      // If there's another lesson in the current module
+      if (lessonIndex < currentModule.lessons.length - 1) {
+        setSelectedLesson({
+          moduleIndex,
+          lessonIndex: lessonIndex + 1,
+          title: currentModule.lessons[lessonIndex + 1].title,
+        })
+      } 
+      // Go to the first lesson of the next module
+      else if (moduleIndex < course.syllabus.length - 1) {
+        const nextModule = course.syllabus[moduleIndex + 1]
+        setSelectedLesson({
+          moduleIndex: moduleIndex + 1,
+          lessonIndex: 0,
+          title: nextModule.lessons[0].title,
+        })
+      }
+    } else if (direction === 'previous') {
+      if (lessonIndex > 0) {
+        setSelectedLesson({
+          moduleIndex,
+          lessonIndex: lessonIndex - 1,
+          title: currentModule.lessons[lessonIndex - 1].title,
+        })
+      } 
+      // Go to the last lesson of the previous module
+      else if (moduleIndex > 0) {
+        const prevModule = course.syllabus[moduleIndex - 1]
+        const lastLessonIndex = prevModule.lessons.length - 1
+        setSelectedLesson({
+          moduleIndex: moduleIndex - 1,
+          lessonIndex: lastLessonIndex,
+          title: prevModule.lessons[lastLessonIndex].title,
+        })
+      }
+    }
+  }
+  
+  const getAdjacentLessons = () => {
+    if (!selectedLesson || !course.syllabus) return { current: null, next: null, previous: null }
+    
+    const { moduleIndex, lessonIndex } = selectedLesson
+    const currentModule = course.syllabus[moduleIndex]
+    const currentLesson = currentModule.lessons[lessonIndex]
+    
+    let nextLesson = null
+    let previousLesson = null
+    
+    // Check for next lesson in current module
+    if (lessonIndex < currentModule.lessons.length - 1) {
+      nextLesson = currentModule.lessons[lessonIndex + 1]
+    } 
+    // Check first lesson of next module
+    else if (moduleIndex < course.syllabus.length - 1) {
+      nextLesson = course.syllabus[moduleIndex + 1].lessons[0]
+    }
+    
+    // Check for previous lesson in current module
+    if (lessonIndex > 0) {
+      previousLesson = currentModule.lessons[lessonIndex - 1]
+    } 
+    // Check last lesson of previous module
+    else if (moduleIndex > 0) {
+      const prevModule = course.syllabus[moduleIndex - 1]
+      previousLesson = prevModule.lessons[prevModule.lessons.length - 1]
+    }
+    
+    return { current: currentLesson, next: nextLesson, previous: previousLesson }
+  }
+  
+  const handleCloseVideo = () => {
+    setSelectedLesson(null)
   }
 
   return (
@@ -104,29 +199,54 @@ export default function CourseDetails({ course }: CourseDetailsProps) {
 
             <TabsContent value="syllabus">
               <CardContent className="p-6">
-                <div className="space-y-4">
-                  {course.syllabus?.map((module, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium">
-                          Module {index + 1}: {module.title}
-                        </h3>
-                        <Badge variant="outline">{module.duration}</Badge>
+                {selectedLesson ? (
+                  <LessonVideo
+                    lessonTitle={selectedLesson.title}
+                    videoPath={course.syllabus?.[selectedLesson.moduleIndex]?.lessons[selectedLesson.lessonIndex]?.videoPath || "/video/HTML/HTML Crash Course In 30 Minutes.mp4"}
+                    currentLesson={getAdjacentLessons().current!}
+                    nextLesson={getAdjacentLessons().next || undefined}
+                    previousLesson={getAdjacentLessons().previous || undefined}
+                    onNavigate={(lesson) => {
+                      // Find the indices for the lesson to navigate to
+                      course.syllabus?.forEach((module, mIndex) => {
+                        const lIndex = module.lessons.findIndex(l => l === lesson)
+                        if (lIndex !== -1) {
+                          handleLessonClick(mIndex, lIndex, lesson.title)
+                        }
+                      })
+                    }}
+                    onClose={handleCloseVideo}
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {course.syllabus?.map((module, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-medium">
+                            Module {index + 1}: {module.title}
+                          </h3>
+                          <Badge variant="outline">{module.duration}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{module.description}</p>
+                        <ul className="space-y-2">
+                          {module.lessons.map((lesson, lessonIndex) => (
+                            <li 
+                              key={lessonIndex} 
+                              className="flex items-center justify-between rounded-md border p-3 hover:bg-accent/50 cursor-pointer transition-colors"
+                              onClick={() => handleLessonClick(index, lessonIndex, lesson.title)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <PlayCircle className="h-5 w-5 text-primary" />
+                                <span className="text-sm font-medium">{lesson.title}</span>
+                              </div>
+                              <Badge variant="outline">{lesson.duration}</Badge>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <p className="text-sm text-muted-foreground">{module.description}</p>
-                      <ul className="space-y-2">
-                        {module.lessons.map((lesson, lessonIndex) => (
-                          <li key={lessonIndex} className="flex items-center justify-between rounded-md border p-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{lesson.title}</span>
-                            </div>
-                            <Badge variant="outline">{lesson.duration}</Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </TabsContent>
 
