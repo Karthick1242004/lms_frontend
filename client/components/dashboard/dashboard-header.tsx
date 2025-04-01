@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { signOut } from "next-auth/react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Moon, Sun, UserIcon } from "lucide-react"
+import React from "react"
 
 interface DashboardHeaderProps {
   user?: {
@@ -26,6 +27,11 @@ interface DashboardHeaderProps {
 
 export default function DashboardHeader({ user }: DashboardHeaderProps) {
   const { setTheme, theme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const userInitials = user?.name
     ? user.name
@@ -43,7 +49,7 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" className="rounded-full">
-            {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            {mounted && (theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />)}
             <span className="sr-only">Toggle theme</span>
           </Button>
         </DropdownMenuTrigger>

@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { FcGoogle } from "react-icons/fc"
 import Image from "next/image"
+import { useMutation } from "@tanstack/react-query"
+import { AlertCircle, CheckCircle2 } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -35,6 +37,10 @@ type SignupFormValues = z.infer<typeof signupSchema>
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [signupError, setSignupError] = useState<string | null>(null)
+  const [signupSuccess, setSignupSuccess] = useState<string | null>(null)
+  const [googleError, setGoogleError] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -56,8 +62,29 @@ export default function LoginPage() {
     },
   })
 
+  const signupMutation = useMutation({
+    mutationFn: async (data: SignupFormValues) => {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error)
+      }
+      
+      return result
+    },
+  })
+
   async function onLoginSubmit(data: LoginFormValues) {
     setIsLoading(true)
+    setLoginError(null)
 
     try {
       const result = await signIn("credentials", {
@@ -67,20 +94,21 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        toast({
-          title: "Error",
-          description: "Invalid email or password",
-          variant: "destructive",
-        })
+        let errorMessage = "Invalid email or password"
+        
+        // Handle specific error messages if returned from the API
+        if (result.error === "No user found with this email") {
+          errorMessage = "No account found with this email"
+        } else if (result.error === "Invalid password") {
+          errorMessage = "The password you entered is incorrect"
+        }
+        
+        setLoginError(errorMessage)
       } else {
         router.push("/dashboard")
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      })
+      setLoginError("Something went wrong with the login process. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -88,43 +116,77 @@ export default function LoginPage() {
 
   async function onSignupSubmit(data: SignupFormValues) {
     setIsLoading(true)
+    setSignupError(null)
+    setSignupSuccess(null)
 
     try {
-      toast({
-        title: "Account created",
-        description: "Please log in with your new account",
-      })
+      await signupMutation.mutateAsync(data)
+      
+      setSignupSuccess("Your account has been created successfully. You can now log in.")
 
-      // Switch to login tab
+      signupForm.reset()
+
       document.getElementById("login-tab")?.click()
 
-      // Pre-fill login form
       loginForm.setValue("email", data.email)
+      loginForm.setValue("password", "")
+
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      })
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong"
+      
+      if (errorMessage.includes("already exists") || errorMessage === "User already exists") {
+        setSignupError("This email is already registered. Please try logging in instead.")
+        
+        document.getElementById("login-tab")?.click()
+        loginForm.setValue("email", data.email)
+      } else if (errorMessage.includes("password")) {
+        setSignupError(errorMessage)
+      } else if (errorMessage.includes("email")) {
+        setSignupError(errorMessage)
+      } else {
+        setSignupError(errorMessage)
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
   async function handleGoogleSignIn() {
-    setIsLoading(true)
-
     try {
-      await signIn("google", { callbackUrl: "/dashboard" })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+      setIsLoading(true)
+      setGoogleError(null)
+      await signIn("google", { 
+        callbackUrl: "/dashboard",
+        redirect: true,
       })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Authentication failed"
+      setGoogleError(errorMessage)
       setIsLoading(false)
     }
   }
+
+  // Helper function to render error messages
+  const ErrorMessage = ({ message }: { message: string | null }) => {
+    if (!message) return null;
+    return (
+      <div className="bg-destructive/15 p-3 rounded-md flex items-start mt-2 mb-4">
+        <AlertCircle className="h-4 w-4 text-destructive mr-2 mt-0.5" />
+        <p className="text-sm text-destructive">{message}</p>
+      </div>
+    );
+  };
+
+  // Helper function to render success messages
+  const SuccessMessage = ({ message }: { message: string | null }) => {
+    if (!message) return null;
+    return (
+      <div className="bg-green-100 p-3 rounded-md flex items-start mt-2 mb-4">
+        <CheckCircle2 className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
+        <p className="text-sm text-green-600">{message}</p>
+      </div>
+    );
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -140,11 +202,9 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-purple-900/40" /> {/* Overlay */}
         </div>
         <div className="relative z-10 flex flex-col justify-between w-full p-12">
-          {/* Top logo */}
           <div className="text-white text-2xl font-bold">
           LMS
           </div>
-          {/* Bottom text */}
           <div className="space-y-4">
             <h1 className="text-4xl font-bold text-white">
             Learn as if you were to ,
@@ -174,6 +234,8 @@ export default function LoginPage() {
                   <FcGoogle className="mr-2 h-4 w-4" />
                   Sign in with Google
                 </Button>
+                
+                {googleError && <ErrorMessage message={googleError} />}
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -193,6 +255,9 @@ export default function LoginPage() {
                   </TabsList>
 
                   <TabsContent value="login">
+                    {loginError && <ErrorMessage message={loginError} />}
+                    {signupSuccess && <SuccessMessage message={signupSuccess} />}
+                    
                     <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
@@ -222,6 +287,8 @@ export default function LoginPage() {
                   </TabsContent>
 
                   <TabsContent value="signup">
+                    {signupError && <ErrorMessage message={signupError} />}
+                    
                     <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Name</Label>

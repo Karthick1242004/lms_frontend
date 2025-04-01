@@ -374,12 +374,10 @@ const mockCourses: Course[] = [
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export async function fetchCourses(): Promise<Course[]> {
-  await delay(1000)
   return mockCourses
 }
 
 export async function getCourseById(id: string): Promise<Course | undefined> {
-  await delay(800) 
   return mockCourses.find((course) => course.id === id)
 }
 
