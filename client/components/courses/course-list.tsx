@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { fetchCourses } from "@/lib/api"
 import { useStore } from "@/lib/store"
 import type { Course } from "@/lib/types"
+import { AlertCircle } from "lucide-react"
 
 export default function CourseList() {
   const { toast } = useToast()
@@ -67,15 +68,47 @@ export default function CourseList() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Failed to Load Courses</h3>
+        <p className="text-muted-foreground mb-4">
+          There was an error loading the courses. Please try again later.
+        </p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    )
+  }
+
+  if (!courses?.length) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <h3 className="text-lg font-semibold mb-2">No Courses Available</h3>
+        <p className="text-muted-foreground">
+          There are no courses available at the moment. Please check back later.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {courses?.map((course) => {
+      {courses.map((course) => {
         const isEnrolled = enrolledCourses.includes(course.id)
 
         return (
           <Card key={course.id} className="overflow-hidden">
             <CardHeader className="p-0">
-              <img src={course.image || "/placeholder.svg"} alt={course.title} className="h-48 w-full object-cover" />
+              <img 
+                src={course.image || "/placeholder.svg"} 
+                alt={course.title} 
+                className="h-48 w-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "/placeholder.svg";
+                }}
+              />
             </CardHeader>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
@@ -87,7 +120,7 @@ export default function CourseList() {
             </CardContent>
             <CardFooter className="flex justify-between p-6 pt-0">
               <Button variant="outline" asChild>
-                <Link href={`/dashboard/courses/${course.id}`}>View Details</Link>
+                <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
               </Button>
               <Button onClick={() => handleEnroll(course)} disabled={isEnrolled}>
                 {isEnrolled ? "Enrolled" : "Enroll Now"}

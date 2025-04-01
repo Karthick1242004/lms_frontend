@@ -28,4 +28,11 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect();
 }
 
-export default clientPromise; 
+// Export both the clientPromise and connectToDatabase function
+export default clientPromise;
+
+export async function connectToDatabase() {
+  const client = await clientPromise;
+  const db = client.db("Mudhalvan"); // Using the database name from your connection string
+  return { db, client };
+} 

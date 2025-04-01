@@ -1,0 +1,118 @@
+[
+    {
+      "id": "1",
+      "title": "Introduction to Web Development",
+      "description": "Learn the fundamentals of web development including HTML, CSS, and JavaScript. This course is designed for beginners with no prior experience.",
+      "instructor": "John Doe",
+      "image": "https://media.istockphoto.com/id/1500285927/photo/young-woman-a-university-student-studying-online.jpg?s=1024x1024&w=is&k=20&c=CVhpekieDK_UB8vtEDw-dKKGWzDpsxcQt-XEQIkgm3Y=",
+      "level": "Beginner",
+      "duration": "8 weeks",
+      "students": 1245,
+      "createdAt": "Jan 15, 2025",
+      "updatedAt": "Mar 10, 2025",
+      "language": "English",
+      "certificate": true,
+      "learningOutcomes": [
+        "Understand HTML structure and semantics",
+        "Create responsive layouts with CSS",
+        "Build interactive web pages with JavaScript",
+        "Deploy websites to production",
+        "Implement basic web accessibility",
+        "Use developer tools for debugging"
+      ],
+      "syllabus": [
+        {
+          "title": "HTML Fundamentals",
+          "description": "Learn the basics of HTML markup and document structure",
+          "duration": "1 week",
+          "lessons": [
+            {
+              "title": "Introduction to HTML",
+              "duration": "45 min",
+              "videoPath": "/video/HTML/HTML Crash Course In 30 Minutes.mp4"
+            }
+          ]
+        }
+      ],
+      "resources": [
+        { "title": "HTML Cheat Sheet", "url": "#" }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Advanced React Development",
+      "description": "Master React.js and build complex, state-driven applications. Learn hooks, context API, and advanced patterns.",
+      "instructor": "Jane Smith",
+      "image": "https://media.istockphoto.com/id/1290864946/photo/e-learning-education-concept-learning-online.jpg?s=1024x1024&w=is&k=20&c=jp1aegIi9CQLqGAOKPQbOHlEgsD_HtYgKoz4KCKRV18=",
+      "level": "Advanced",
+      "duration": "10 weeks",
+      "students": 843,
+      "createdAt": "Feb 5, 2025",
+      "updatedAt": "Mar 12, 2025",
+      "language": "English",
+      "certificate": true,
+      "learningOutcomes": [
+        "Build complex React applications",
+        "Implement state management with Redux",
+        "Create custom hooks",
+        "Optimize React performance",
+        "Test React components",
+        "Deploy React applications"
+      ],
+      "syllabus": [
+        {
+          "title": "React Fundamentals Review",
+          "description": "Quick review of React basics",
+          "duration": "1 week",
+          "lessons": [
+            {
+              "title": "Components and Props",
+              "duration": "1 hour"
+            }
+          ]
+        }
+      ],
+      "resources": [
+        { "title": "React Documentation", "url": "#" }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Data Science Fundamentals",
+      "description": "Introduction to data science concepts, tools, and methodologies. Learn Python, data analysis, and visualization.",
+      "instructor": "Michael Johnson",
+      "image": "https://media.istockphoto.com/id/1290864946/photo/e-learning-education-concept-learning-online.jpg?s=1024x1024&w=is&k=20&c=jp1aegIi9CQLqGAOKPQbOHlEgsD_HtYgKoz4KCKRV18=",
+      "level": "Intermediate",
+      "duration": "12 weeks",
+      "students": 1567,
+      "createdAt": "Dec 10, 2024",
+      "updatedAt": "Mar 5, 2025",
+      "language": "English",
+      "certificate": true,
+      "learningOutcomes": [
+        "Analyze data using Python",
+        "Create data visualizations",
+        "Apply statistical methods",
+        "Build machine learning models",
+        "Clean and preprocess data",
+        "Present data insights"
+      ],
+      "syllabus": [
+        {
+          "title": "Python for Data Science",
+          "description": "Learn Python programming for data analysis",
+          "duration": "3 weeks",
+          "lessons": [
+            {
+              "title": "Python Basics",
+              "duration": "1.5 hours"
+            }
+          ]
+        }
+      ],
+      "resources": [
+        { "title": "Python Data Science Handbook", "url": "#" }
+      ]
+    }
+  ]
+  

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, PlayCircle } from "lucide-react"
+import { ChevronLeft, ChevronRight, PlayCircle, AlertCircle } from "lucide-react"
 import type { Lesson } from "@/lib/types"
 
 interface LessonVideoProps {
@@ -27,13 +27,18 @@ export default function LessonVideo({
 }: LessonVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Reset video when the lesson changes
     if (videoRef.current) {
+      setIsLoading(true)
+      setError(null)
       videoRef.current.currentTime = 0
-      videoRef.current.play().catch(() => {
-        // Auto-play may be blocked
+      videoRef.current.play().catch((err) => {
+        console.error("Error playing video:", err)
+        setError("Failed to play video. Please try again.")
         setIsPlaying(false)
       })
     }
@@ -44,18 +49,48 @@ export default function LessonVideo({
       if (isPlaying) {
         videoRef.current.pause()
       } else {
-        videoRef.current.play().catch(() => {
-          // Handle potential auto-play restrictions
+        videoRef.current.play().catch((err) => {
+          console.error("Error playing video:", err)
+          setError("Failed to play video. Please try again.")
         })
       }
       setIsPlaying(!isPlaying)
     }
   }
 
+  const handleVideoLoadStart = () => {
+    setIsLoading(true)
+    setError(null)
+  }
+
+  const handleVideoLoadedData = () => {
+    setIsLoading(false)
+    setError(null)
+  }
+
+  const handleVideoError = () => {
+    setIsLoading(false)
+    setError("Failed to load video. Please try again.")
+  }
+
   return (
     <Card className="w-full">
       <CardContent className="p-0">
         <div className="relative">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
+          {error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80">
+              <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+              <p className="text-destructive mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>Try Again</Button>
+            </div>
+          )}
+
           <video
             ref={videoRef}
             className="w-full aspect-video"
@@ -63,9 +98,18 @@ export default function LessonVideo({
             controls
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
+            onLoadStart={handleVideoLoadStart}
+            onLoadedData={handleVideoLoadedData}
+            onError={handleVideoError}
           />
+          
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
-            <Button variant="outline" size="sm" onClick={onClose} className="bg-background/80 backdrop-blur-sm">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onClose} 
+              className="bg-background/80 backdrop-blur-sm"
+            >
               Back to Syllabus
             </Button>
           </div>

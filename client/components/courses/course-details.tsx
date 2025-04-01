@@ -10,14 +10,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { useStore } from "@/lib/store"
 import type { Course, Lesson } from "@/lib/types"
-import { CheckCircle, Clock, PlayCircle, Users } from "lucide-react"
+import { CheckCircle, Clock, PlayCircle, Users, AlertCircle } from "lucide-react"
 import LessonVideo from "./lesson-video"
+import { useQuery } from "@tanstack/react-query"
+import { fetchCourseById } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface CourseDetailsProps {
-  course: Course
+  courseId: string
 }
 
-export default function CourseDetails({ course }: CourseDetailsProps) {
+export default function CourseDetails({ courseId }: CourseDetailsProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedLesson, setSelectedLesson] = useState<{
     moduleIndex: number;
@@ -27,6 +30,61 @@ export default function CourseDetails({ course }: CourseDetailsProps) {
   const router = useRouter()
   const { toast } = useToast()
   const { enrolledCourses, enrollInCourse } = useStore()
+
+  const {
+    data: course,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["course", courseId],
+    queryFn: () => fetchCourseById(courseId),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div className="space-y-1">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="md:col-span-2">
+            <Skeleton className="h-96" />
+          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="h-4 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-24" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !course) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Failed to Load Course</h3>
+        <p className="text-muted-foreground mb-4">
+          There was an error loading the course details. Please try again later.
+        </p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    )
+  }
 
   const isEnrolled = enrolledCourses.includes(course.id)
 

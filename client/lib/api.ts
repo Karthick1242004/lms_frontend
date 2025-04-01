@@ -374,7 +374,19 @@ const mockCourses: Course[] = [
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export async function fetchCourses(): Promise<Course[]> {
-  return mockCourses
+  const response = await fetch("/api/courses")
+  if (!response.ok) {
+    throw new Error("Failed to fetch courses")
+  }
+  return response.json()
+}
+
+export async function fetchCourseById(id: string): Promise<Course> {
+  const response = await fetch(`/api/courses/${id}`)
+  if (!response.ok) {
+    throw new Error("Failed to fetch course")
+  }
+  return response.json()
 }
 
 export async function getCourseById(id: string): Promise<Course | undefined> {
