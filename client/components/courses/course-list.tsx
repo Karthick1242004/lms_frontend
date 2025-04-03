@@ -15,8 +15,9 @@ import { AlertCircle } from "lucide-react"
 
 export default function CourseList() {
   const { toast } = useToast()
-  const { enrolledCourses, enrollInCourse } = useStore()
+  const { enrolledCourses, enrollInCourse, fetchEnrolledCourses } = useStore()
 
+  // Fetch courses
   const {
     data: courses,
     isLoading,
@@ -25,6 +26,17 @@ export default function CourseList() {
     queryKey: ["courses"],
     queryFn: fetchCourses,
   })
+
+  // Fetch enrolled courses on mount
+  useEffect(() => {
+    fetchEnrolledCourses().catch((error) => {
+      toast({
+        title: "Error",
+        description: "Failed to load enrolled courses. Please try again.",
+        variant: "destructive",
+      })
+    })
+  }, [fetchEnrolledCourses, toast])
 
   useEffect(() => {
     if (error) {

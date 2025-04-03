@@ -27,7 +27,7 @@ export async function GET() {
     })
 
   } catch (error) {
-    console.error("Error fetching enrollments:", error)
+
     return NextResponse.json(
       { error: "Failed to fetch enrollments" },
       { status: 500 }
@@ -117,7 +117,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Error enrolling in course:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to enroll in course" },
       { status: 500 }
@@ -159,7 +158,6 @@ export async function DELETE(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Error unenrolling from course:", error)
     return NextResponse.json(
       { error: "Failed to unenroll from course" },
       { status: 500 }

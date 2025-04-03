@@ -389,8 +389,20 @@ export async function fetchCourseById(id: string): Promise<Course> {
   return response.json()
 }
 
-export async function getCourseById(id: string): Promise<Course | undefined> {
-  return mockCourses.find((course) => course.id === id)
+export async function getCourseById(id: string) {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/courses/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to fetch course' }));
+    throw new Error(error.error || 'Failed to fetch course');
+  }
+  
+  return response.json();
 }
 
 // Enrollment APIs

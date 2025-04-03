@@ -37,7 +37,7 @@ export default function LessonVideo({
       setError(null)
       videoRef.current.currentTime = 0
       videoRef.current.play().catch((err) => {
-        console.error("Error playing video:", err)
+
         setError("Failed to play video. Please try again.")
         setIsPlaying(false)
       })
@@ -50,7 +50,7 @@ export default function LessonVideo({
         videoRef.current.pause()
       } else {
         videoRef.current.play().catch((err) => {
-          console.error("Error playing video:", err)
+
           setError("Failed to play video. Please try again.")
         })
       }

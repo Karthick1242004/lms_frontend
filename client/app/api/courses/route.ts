@@ -5,13 +5,9 @@ import { ObjectId } from "mongodb"
 export async function GET() {
   try {
     const { db } = await connectToDatabase()
-    console.log("Connected to database successfully")
-
     const courses = await db.collection("coursedetails").find({}).toArray()
-    console.log("Fetched courses:", courses)
     
     if (!courses || courses.length === 0) {
-      console.log("No courses found in the collection")
       return NextResponse.json([])
     }
     
@@ -23,7 +19,6 @@ export async function GET() {
     
     return NextResponse.json(formattedCourses)
   } catch (error) {
-    console.error("Error fetching courses:", error)
     return NextResponse.json(
       { error: "Failed to fetch courses" },
       { status: 500 }
@@ -64,7 +59,6 @@ export async function GETById(request: Request, { params }: { params: { id: stri
     
     return NextResponse.json(formattedCourse)
   } catch (error) {
-    console.error("Error fetching course:", error)
     return NextResponse.json(
       { error: "Failed to fetch course" },
       { status: 500 }
