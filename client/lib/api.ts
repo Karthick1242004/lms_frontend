@@ -393,3 +393,43 @@ export async function getCourseById(id: string): Promise<Course | undefined> {
   return mockCourses.find((course) => course.id === id)
 }
 
+// Enrollment APIs
+export async function getEnrolledCourses(): Promise<string[]> {
+  const response = await fetch("/api/enrollments")
+  if (!response.ok) {
+    throw new Error("Failed to fetch enrolled courses")
+  }
+  const data = await response.json()
+  return data.enrolledCourses
+}
+
+export async function enrollInCourse(courseId: string): Promise<void> {
+  const response = await fetch("/api/enrollments", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ courseId }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to enroll in course")
+  }
+}
+
+export async function unenrollFromCourse(courseId: string): Promise<void> {
+  const response = await fetch("/api/enrollments", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ courseId }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to unenroll from course")
+  }
+}
+

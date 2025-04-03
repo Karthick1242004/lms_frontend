@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 
 export async function GET() {
   try {
@@ -14,7 +15,13 @@ export async function GET() {
       return NextResponse.json([])
     }
     
-    return NextResponse.json(courses)
+    // Ensure _id is converted to string
+    const formattedCourses = courses.map(course => ({
+      ...course,
+      _id: course._id.toString(),
+    }))
+    
+    return NextResponse.json(formattedCourses)
   } catch (error) {
     console.error("Error fetching courses:", error)
     return NextResponse.json(
@@ -27,7 +34,20 @@ export async function GET() {
 export async function GETById(request: Request, { params }: { params: { id: string } }) {
   try {
     const { db } = await connectToDatabase()
-    const course = await db.collection("coursedetails").findOne({ id: params.id })
+    
+    let courseId;
+    try {
+      courseId = new ObjectId(params.id);
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid course ID format" },
+        { status: 400 }
+      )
+    }
+    
+    const course = await db.collection("coursedetails").findOne({ 
+      _id: courseId 
+    })
     
     if (!course) {
       return NextResponse.json(
@@ -36,7 +56,13 @@ export async function GETById(request: Request, { params }: { params: { id: stri
       )
     }
     
-    return NextResponse.json(course)
+    // Ensure _id is converted to string
+    const formattedCourse = {
+      ...course,
+      _id: course._id.toString(),
+    }
+    
+    return NextResponse.json(formattedCourse)
   } catch (error) {
     console.error("Error fetching course:", error)
     return NextResponse.json(

@@ -1,43 +1,62 @@
 "use client"
 
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { getEnrolledCourses, enrollInCourse as apiEnrollInCourse, unenrollFromCourse as apiUnenrollFromCourse } from "./api"
 
 interface StoreState {
   enrolledCourses: string[]
-  enrollInCourse: (courseId: string) => void
-  unenrollFromCourse: (courseId: string) => void
-  isEnrolled: (courseId: string) => boolean
+  isLoading: boolean
+  error: string | null
+  fetchEnrolledCourses: () => Promise<void>
+  enrollInCourse: (courseId: string) => Promise<void>
+  unenrollFromCourse: (courseId: string) => Promise<void>
 }
 
-export const useStore = create<StoreState>()(
-  persist(
-    (set, get) => ({
-      enrolledCourses: [],
+export const useStore = create<StoreState>((set, get) => ({
+  enrolledCourses: [],
+  isLoading: false,
+  error: null,
 
-      enrollInCourse: (courseId) => {
-        const { enrolledCourses } = get()
+  fetchEnrolledCourses: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const courses = await getEnrolledCourses()
+      set({ enrolledCourses: courses })
+    } catch (error) {
+      set({ error: (error as Error).message })
+    } finally {
+      set({ isLoading: false })
+    }
+  },
 
-        if (!enrolledCourses.includes(courseId)) {
-          set({ enrolledCourses: [...enrolledCourses, courseId] })
-        }
-      },
+  enrollInCourse: async (courseId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      await apiEnrollInCourse(courseId)
+      set((state) => ({
+        enrolledCourses: [...state.enrolledCourses, courseId]
+      }))
+    } catch (error) {
+      set({ error: (error as Error).message })
+      throw error // Re-throw to handle in UI
+    } finally {
+      set({ isLoading: false })
+    }
+  },
 
-      unenrollFromCourse: (courseId) => {
-        const { enrolledCourses } = get()
-        set({
-          enrolledCourses: enrolledCourses.filter((id) => id !== courseId),
-        })
-      },
-
-      isEnrolled: (courseId) => {
-        const { enrolledCourses } = get()
-        return enrolledCourses.includes(courseId)
-      },
-    }),
-    {
-      name: "lms-storage",
-    },
-  ),
-)
+  unenrollFromCourse: async (courseId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      await apiUnenrollFromCourse(courseId)
+      set((state) => ({
+        enrolledCourses: state.enrolledCourses.filter(id => id !== courseId)
+      }))
+    } catch (error) {
+      set({ error: (error as Error).message })
+      throw error // Re-throw to handle in UI
+    } finally {
+      set({ isLoading: false })
+    }
+  }
+}))
 

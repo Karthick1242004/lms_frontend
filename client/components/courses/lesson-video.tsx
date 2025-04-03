@@ -12,7 +12,7 @@ interface LessonVideoProps {
   currentLesson: Lesson
   nextLesson?: Lesson
   previousLesson?: Lesson
-  onNavigate: (lesson: Lesson) => void
+  onNavigate?: (lesson: Lesson) => void
   onClose: () => void
 }
 
@@ -118,24 +118,26 @@ export default function LessonVideo({
         <div className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">{lessonTitle}</h2>
           
-          <div className="flex justify-between mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => previousLesson && onNavigate(previousLesson)}
-              disabled={!previousLesson}
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous Lesson
-            </Button>
-            
-            <Button 
-              onClick={() => nextLesson && onNavigate(nextLesson)}
-              disabled={!nextLesson}
-            >
-              Next Lesson
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+          {onNavigate && (
+            <div className="flex justify-between mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => previousLesson && onNavigate(previousLesson)}
+                disabled={!previousLesson}
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Previous Lesson
+              </Button>
+              
+              <Button 
+                onClick={() => nextLesson && onNavigate(nextLesson)}
+                disabled={!nextLesson}
+              >
+                Next Lesson
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

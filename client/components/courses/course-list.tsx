@@ -36,13 +36,31 @@ export default function CourseList() {
     }
   }, [error, toast])
 
-  const handleEnroll = (course: Course) => {
-    enrollInCourse(course.id)
+  const handleEnroll = async (course: Course) => {
+    const courseId = course._id?.toString();
+    
+    if (!courseId) {
+      toast({
+        title: "Enrollment Failed",
+        description: "Invalid course ID",
+        variant: "destructive",
+      })
+      return;
+    }
 
-    toast({
-      title: "Enrolled Successfully",
-      description: `You have been enrolled in ${course.title}`,
-    })
+    try {
+      await enrollInCourse(courseId)
+      toast({
+        title: "Enrolled Successfully",
+        description: `You have been enrolled in ${course.title}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Enrollment Failed",
+        description: error instanceof Error ? error.message : "Failed to enroll in course",
+        variant: "destructive",
+      })
+    }
   }
 
   if (isLoading) {
@@ -95,10 +113,10 @@ export default function CourseList() {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {courses.map((course) => {
-        const isEnrolled = enrolledCourses.includes(course.id)
+        const isEnrolled = enrolledCourses.includes(course._id?.toString() || '')
 
         return (
-          <Card key={course.id} className="overflow-hidden">
+          <Card key={course._id?.toString()} className="overflow-hidden">
             <CardHeader className="p-0">
               <img 
                 src={course.image || "/placeholder.svg"} 
@@ -120,7 +138,7 @@ export default function CourseList() {
             </CardContent>
             <CardFooter className="flex justify-between p-6 pt-0">
               <Button variant="outline" asChild>
-                <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
+                <Link href={`/dashboard/courses/${course._id || ''}`}>View Details</Link>
               </Button>
               <Button onClick={() => handleEnroll(course)} disabled={isEnrolled}>
                 {isEnrolled ? "Enrolled" : "Enroll Now"}
