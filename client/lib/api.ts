@@ -445,3 +445,51 @@ export async function unenrollFromCourse(courseId: string): Promise<void> {
   }
 }
 
+// Attendance tracking APIs
+export async function sendAttendanceHeartbeat(
+  courseId: string,
+  moduleId: string,
+  lessonId: string,
+  currentTime?: number,
+  totalDuration?: number,
+  event?: any
+): Promise<void> {
+  if (!courseId || !moduleId || !lessonId) {
+    throw new Error("Missing required fields: courseId, moduleId, and lessonId are required")
+  }
+
+  const response = await fetch("/api/attendance", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      courseId,
+      moduleId,
+      lessonId,
+      currentTime: currentTime || 0,
+      totalDuration: totalDuration || 0,
+      event: event || null
+    }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to send attendance heartbeat")
+  }
+}
+
+export async function getAttendanceRecords(courseId?: string): Promise<any[]> {
+  const url = courseId ? `/api/attendance?courseId=${courseId}` : "/api/attendance"
+  
+  const response = await fetch(url)
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to fetch attendance records")
+  }
+  
+  const data = await response.json()
+  return data.records
+}
+

@@ -275,6 +275,8 @@ function CourseSyllabus({
           videoPath={currentLesson.videoPath || ""}
           currentLesson={currentLesson}
           onClose={onCloseVideo}
+          courseId={course.id}
+          moduleId={course.syllabus?.[selectedLesson.moduleIndex].title || ""}
         />
       ) : (
         <div className="space-y-4">
