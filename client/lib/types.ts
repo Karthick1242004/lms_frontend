@@ -1,7 +1,4 @@
-import { ObjectId } from "mongodb"
-
 export interface Course {
-  _id?: string | ObjectId
   id: string
   title: string
   description: string
@@ -30,29 +27,10 @@ export interface Lesson {
   title: string
   duration: string
   videoPath?: string
-  id?: string
 }
 
 export interface Resource {
   title: string
   url: string
-}
-
-export interface LessonAttendance {
-  lessonId: string
-  courseId: string
-  moduleId: string
-  startTime: Date
-  endTime?: Date
-  watchedDuration: number
-  totalDuration: number
-  completed: boolean
-  attentionEvents?: AttentionEvent[]
-}
-
-export interface AttentionEvent {
-  timestamp: Date
-  eventType: 'tab_switch' | 'fast_forward' | 'inactivity' | 'heartbeat' | 'activity_resumed'
-  details?: string
 }
 

@@ -1,92 +1,103 @@
 "use client"
 
 import { create } from "zustand"
-import { getEnrolledCourses, enrollInCourse as apiEnrollInCourse, unenrollFromCourse as apiUnenrollFromCourse, getAttendanceRecords } from "./api"
 import { persist } from "zustand/middleware"
 
 interface StoreState {
   enrolledCourses: string[]
-  attendanceRecords: any[]
-  isLoading: boolean
-  error: string | null
-  fetchEnrolledCourses: () => Promise<void>
-  enrollInCourse: (courseId: string) => Promise<void>
-  unenrollFromCourse: (courseId: string) => Promise<void>
-  fetchAttendanceRecords: (courseId?: string) => Promise<void>
+  loadingEnrollment: boolean
+  enrollInCourse: (courseId: string) => Promise<boolean>
+  unenrollFromCourse: (courseId: string) => Promise<boolean>
+  isEnrolled: (courseId: string) => boolean
+  syncEnrollments: () => Promise<void>
 }
 
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
       enrolledCourses: [],
-      attendanceRecords: [],
-      isLoading: false,
-      error: null,
+      loadingEnrollment: false,
 
-      fetchEnrolledCourses: async () => {
-        set({ isLoading: true, error: null })
+      syncEnrollments: async () => {
         try {
-          const courses = await getEnrolledCourses()
-          set({ enrolledCourses: courses })
+          set({ loadingEnrollment: true })
+          const response = await fetch('/api/enrollments')
+          
+          if (response.ok) {
+            const data = await response.json()
+            set({ enrolledCourses: data.enrolledCourses || [] })
+          }
         } catch (error) {
-          set({ error: (error as Error).message })
-          throw error
+          console.error("Failed to sync enrollments:", error)
         } finally {
-          set({ isLoading: false })
+          set({ loadingEnrollment: false })
         }
       },
 
-      enrollInCourse: async (courseId: string) => {
-        set({ isLoading: true, error: null })
+      enrollInCourse: async (courseId) => {
         try {
-          await apiEnrollInCourse(courseId)
-          // Fetch updated enrolled courses after successful enrollment
-          const courses = await getEnrolledCourses()
-          set({ enrolledCourses: courses })
+          set({ loadingEnrollment: true })
+          
+          const response = await fetch('/api/enrollments', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ courseId }),
+          })
+          
+          if (response.ok) {
+            const { enrolledCourses } = get()
+            
+            if (!enrolledCourses.includes(courseId)) {
+              set({ enrolledCourses: [...enrolledCourses, courseId] })
+            }
+            
+            return true
+          }
+          
+          return false
         } catch (error) {
-          set({ error: (error as Error).message })
-          throw error
+          console.error("Failed to enroll in course:", error)
+          return false
         } finally {
-          set({ isLoading: false })
+          set({ loadingEnrollment: false })
         }
       },
 
-      unenrollFromCourse: async (courseId: string) => {
-        set({ isLoading: true, error: null })
+      unenrollFromCourse: async (courseId) => {
         try {
-          await apiUnenrollFromCourse(courseId)
-          // Fetch updated enrolled courses after successful unenrollment
-          const courses = await getEnrolledCourses()
-          set({ enrolledCourses: courses })
+          set({ loadingEnrollment: true })
+          
+          const response = await fetch(`/api/enrollments/${courseId}`, {
+            method: 'DELETE',
+          })
+          
+          if (response.ok) {
+            const { enrolledCourses } = get()
+            set({
+              enrolledCourses: enrolledCourses.filter((id) => id !== courseId),
+            })
+            return true
+          }
+          
+          return false
         } catch (error) {
-          set({ error: (error as Error).message })
-          throw error
+          console.error("Failed to unenroll from course:", error)
+          return false
         } finally {
-          set({ isLoading: false })
+          set({ loadingEnrollment: false })
         }
       },
 
-      fetchAttendanceRecords: async (courseId?: string) => {
-        set({ isLoading: true, error: null })
-        try {
-          const records = await getAttendanceRecords(courseId)
-          set({ attendanceRecords: records })
-        } catch (error) {
-          set({ error: (error as Error).message })
-          throw error
-        } finally {
-          set({ isLoading: false })
-        }
-      }
+      isEnrolled: (courseId) => {
+        const { enrolledCourses } = get()
+        return enrolledCourses.includes(courseId)
+      },
     }),
     {
       name: "lms-storage",
-      partialize: (state) => ({ 
-        enrolledCourses: state.enrolledCourses,
-        // Don't persist attendance records in local storage
-        // They will be fetched from the server
-      }),
-    }
-  )
+    },
+  ),
 )
 

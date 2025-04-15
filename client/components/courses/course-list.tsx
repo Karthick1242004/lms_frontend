@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { useToast } from "@/components/ui/use-toast"
@@ -15,9 +15,9 @@ import { AlertCircle } from "lucide-react"
 
 export default function CourseList() {
   const { toast } = useToast()
-  const { enrolledCourses, enrollInCourse, fetchEnrolledCourses } = useStore()
+  const { enrolledCourses, enrollInCourse, loadingEnrollment } = useStore()
+  const [isEnrolling, setIsEnrolling] = useState<{[key: string]: boolean}>({})
 
-  // Fetch courses
   const {
     data: courses,
     isLoading,
@@ -26,17 +26,6 @@ export default function CourseList() {
     queryKey: ["courses"],
     queryFn: fetchCourses,
   })
-
-  // Fetch enrolled courses on mount
-  useEffect(() => {
-    fetchEnrolledCourses().catch((error) => {
-      toast({
-        title: "Error",
-        description: "Failed to load enrolled courses. Please try again.",
-        variant: "destructive",
-      })
-    })
-  }, [fetchEnrolledCourses, toast])
 
   useEffect(() => {
     if (error) {
@@ -49,29 +38,32 @@ export default function CourseList() {
   }, [error, toast])
 
   const handleEnroll = async (course: Course) => {
-    const courseId = course._id?.toString();
+    // Set loading state for this specific course
+    setIsEnrolling(prev => ({ ...prev, [course.id]: true }))
     
-    if (!courseId) {
-      toast({
-        title: "Enrollment Failed",
-        description: "Invalid course ID",
-        variant: "destructive",
-      })
-      return;
-    }
-
     try {
-      await enrollInCourse(courseId)
-      toast({
-        title: "Enrolled Successfully",
-        description: `You have been enrolled in ${course.title}`,
-      })
+      const success = await enrollInCourse(course.id)
+      
+      if (success) {
+        toast({
+          title: "Enrolled Successfully",
+          description: `You have been enrolled in ${course.title}`,
+        })
+      } else {
+        toast({
+          title: "Enrollment Failed",
+          description: "Failed to enroll in course. Please try again.",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       toast({
         title: "Enrollment Failed",
-        description: error instanceof Error ? error.message : "Failed to enroll in course",
+        description: "An error occurred. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsEnrolling(prev => ({ ...prev, [course.id]: false }))
     }
   }
 
@@ -125,10 +117,11 @@ export default function CourseList() {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {courses.map((course) => {
-        const isEnrolled = enrolledCourses.includes(course._id?.toString() || '')
+        const isEnrolled = enrolledCourses.includes(course.id)
+        const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
 
         return (
-          <Card key={course._id?.toString()} className="overflow-hidden">
+          <Card key={course.id} className="overflow-hidden">
             <CardHeader className="p-0">
               <img 
                 src={course.image || "/placeholder.svg"} 
@@ -150,10 +143,18 @@ export default function CourseList() {
             </CardContent>
             <CardFooter className="flex justify-between p-6 pt-0">
               <Button variant="outline" asChild>
-                <Link href={`/dashboard/courses/${course._id || ''}`}>View Details</Link>
+                <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
               </Button>
-              <Button onClick={() => handleEnroll(course)} disabled={isEnrolled}>
-                {isEnrolled ? "Enrolled" : "Enroll Now"}
+              <Button 
+                onClick={() => handleEnroll(course)} 
+                disabled={isEnrolled || isButtonLoading}
+              >
+                {isButtonLoading ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
+                    Loading...
+                  </>
+                ) : isEnrolled ? "Enrolled" : "Enroll Now"}
               </Button>
             </CardFooter>
           </Card>

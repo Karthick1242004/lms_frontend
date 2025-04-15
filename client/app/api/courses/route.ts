@@ -1,24 +1,22 @@
 import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
 
 export async function GET() {
   try {
     const { db } = await connectToDatabase()
+    console.log("Connected to database successfully")
+
     const courses = await db.collection("coursedetails").find({}).toArray()
+    console.log("Fetched courses:", courses)
     
     if (!courses || courses.length === 0) {
+      console.log("No courses found in the collection")
       return NextResponse.json([])
     }
     
-    // Ensure _id is converted to string
-    const formattedCourses = courses.map(course => ({
-      ...course,
-      _id: course._id.toString(),
-    }))
-    
-    return NextResponse.json(formattedCourses)
+    return NextResponse.json(courses)
   } catch (error) {
+    console.error("Error fetching courses:", error)
     return NextResponse.json(
       { error: "Failed to fetch courses" },
       { status: 500 }
@@ -29,20 +27,7 @@ export async function GET() {
 export async function GETById(request: Request, { params }: { params: { id: string } }) {
   try {
     const { db } = await connectToDatabase()
-    
-    let courseId;
-    try {
-      courseId = new ObjectId(params.id);
-    } catch (error) {
-      return NextResponse.json(
-        { error: "Invalid course ID format" },
-        { status: 400 }
-      )
-    }
-    
-    const course = await db.collection("coursedetails").findOne({ 
-      _id: courseId 
-    })
+    const course = await db.collection("coursedetails").findOne({ id: params.id })
     
     if (!course) {
       return NextResponse.json(
@@ -51,14 +36,9 @@ export async function GETById(request: Request, { params }: { params: { id: stri
       )
     }
     
-    // Ensure _id is converted to string
-    const formattedCourse = {
-      ...course,
-      _id: course._id.toString(),
-    }
-    
-    return NextResponse.json(formattedCourse)
+    return NextResponse.json(course)
   } catch (error) {
+    console.error("Error fetching course:", error)
     return NextResponse.json(
       { error: "Failed to fetch course" },
       { status: 500 }

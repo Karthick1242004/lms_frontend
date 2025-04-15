@@ -7,12 +7,11 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import AuthProvider from "@/components/auth-provider"
+import StoreProvider from "@/components/store-provider"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
-
-
 
 export default function RootLayout({
   children,
@@ -27,8 +26,10 @@ export default function RootLayout({
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-              {children}
-              <Toaster />
+              <StoreProvider>
+                {children}
+                <Toaster />
+              </StoreProvider>
             </ThemeProvider>
           </QueryClientProvider>
         </AuthProvider>
@@ -36,7 +37,5 @@ export default function RootLayout({
     </html>
   )
 }
-
-
 
 import './globals.css'

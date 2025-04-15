@@ -1,13 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, PlayCircle, AlertCircle } from "lucide-react"
 import type { Lesson } from "@/lib/types"
-import { useAttendance } from "@/hooks/use-attendance"
-import { AttendanceWarning } from "./attendance-warning"
-import { sendAttendanceHeartbeat } from "@/lib/api"
+import { useToast } from "@/components/ui/use-toast"
 
 interface LessonVideoProps {
   lessonTitle: string
@@ -15,10 +13,11 @@ interface LessonVideoProps {
   currentLesson: Lesson
   nextLesson?: Lesson
   previousLesson?: Lesson
-  onNavigate?: (lesson: Lesson) => void
+  onNavigate: (lesson: Lesson) => void
   onClose: () => void
   courseId: string
-  moduleId: string
+  moduleIndex: number
+  lessonIndex: number
 }
 
 export default function LessonVideo({
@@ -30,83 +29,94 @@ export default function LessonVideo({
   onNavigate,
   onClose,
   courseId,
-  moduleId,
+  moduleIndex,
+  lessonIndex,
 }: LessonVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [videoDuration, setVideoDuration] = useState(0)
-  const [warningType, setWarningType] = useState<'inactive' | 'tab_switch' | 'fast_forward' | null>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const { toast } = useToast()
 
-  // Initialize the attendance tracking
-  const attendance = useAttendance({
-    courseId,
-    moduleId,
-    lesson: currentLesson,
-    videoDuration
-  })
-
-  // Effect to set the video duration once loaded
-  useEffect(() => {
-    const handleMetadataLoaded = () => {
-      if (videoRef.current) {
-        setVideoDuration(videoRef.current.duration)
-      }
-    }
-
-    const videoElement = videoRef.current
-    if (videoElement) {
-      videoElement.addEventListener('loadedmetadata', handleMetadataLoaded)
-    }
-
-    return () => {
-      if (videoElement) {
-        videoElement.removeEventListener('loadedmetadata', handleMetadataLoaded)
-      }
-    }
-  }, [])
-
-  // Handle attendance warning dialogs
-  useEffect(() => {
-    if (attendance.showInactiveWarning) {
-      setWarningType('inactive')
-    } else if (attendance.showTabSwitchWarning) {
-      setWarningType('tab_switch')
-    } else if (attendance.showFastForwardWarning) {
-      setWarningType('fast_forward')
-    } else {
-      setWarningType(null)
-    }
-  }, [
-    attendance.showInactiveWarning,
-    attendance.showTabSwitchWarning,
-    attendance.showFastForwardWarning
-  ])
-
-  // Track video time changes
-  useEffect(() => {
-    const handleTimeUpdate = () => {
-      if (videoRef.current) {
-        const currentTime = videoRef.current.currentTime
+  // Send heartbeat to server to track attendance
+  const sendHeartbeat = useCallback(async () => {
+    if (!videoRef.current) return
+    
+    try {
+      const response = await fetch('/api/attendance/heartbeat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courseId,
+          moduleIndex,
+          lessonIndex,
+          currentTime: videoRef.current.currentTime,
+          totalDuration: videoRef.current.duration,
+        }),
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
         
-        // Update attendance tracking
-        attendance.handleTimeUpdate(currentTime)
+        // If video is almost completed (>= 90%), show a toast
+        if (data.status === "completed" && data.percentageWatched >= 90) {
+          toast({
+            title: "Progress Saved",
+            description: "This lesson has been marked as completed!",
+            duration: 3000,
+          })
+        }
       }
+    } catch (err) {
+      console.error("Failed to send heartbeat:", err)
     }
+  }, [courseId, moduleIndex, lessonIndex, toast])
 
-    const videoElement = videoRef.current
-    if (videoElement) {
-      // Use a throttled approach by listening to timeupdate less frequently
-      videoElement.addEventListener('timeupdate', handleTimeUpdate, { passive: true })
+  // Setup heartbeat interval (every 10 seconds)
+  useEffect(() => {
+    if (isPlaying && videoRef.current) {
+      // Send initial heartbeat
+      sendHeartbeat()
+      
+      // Set up interval for heartbeats
+      heartbeatIntervalRef.current = setInterval(() => {
+        sendHeartbeat()
+      }, 10000) // Send heartbeat every 10 seconds
     }
-
+    
     return () => {
-      if (videoElement) {
-        videoElement.removeEventListener('timeupdate', handleTimeUpdate)
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
       }
     }
-  }, [attendance])
+  }, [isPlaying, sendHeartbeat])
+
+  // Send final heartbeat when component unmounts
+  useEffect(() => {
+    return () => {
+      sendHeartbeat()
+    }
+  }, [sendHeartbeat])
+
+  // Track video time updates
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime)
+    }
+  }
+
+  // When video metadata is loaded, set the duration
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
 
   useEffect(() => {
     // Reset video when the lesson changes
@@ -115,6 +125,7 @@ export default function LessonVideo({
       setError(null)
       videoRef.current.currentTime = 0
       videoRef.current.play().catch((err) => {
+        console.error("Error playing video:", err)
         setError("Failed to play video. Please try again.")
         setIsPlaying(false)
       })
@@ -127,6 +138,7 @@ export default function LessonVideo({
         videoRef.current.pause()
       } else {
         videoRef.current.play().catch((err) => {
+          console.error("Error playing video:", err)
           setError("Failed to play video. Please try again.")
         })
       }
@@ -149,23 +161,8 @@ export default function LessonVideo({
     setError("Failed to load video. Please try again.")
   }
 
-  const handleWarningConfirm = (type: 'inactive' | 'tab_switch' | 'fast_forward') => {
-    attendance.resetWarnings()
-    
-    // Send an event to the backend that user confirmed they're still active
-    sendAttendanceHeartbeat(
-      courseId,
-      moduleId,
-      currentLesson.id || currentLesson.title,
-      videoRef.current?.currentTime,
-      videoDuration,
-      {
-        timestamp: new Date(),
-        eventType: 'activity_resumed',
-        details: `User confirmed activity after ${type} warning`
-      }
-    ).catch(console.error)
-  }
+  // Calculate progress percentage
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
     <Card className="w-full">
@@ -195,6 +192,9 @@ export default function LessonVideo({
             onLoadStart={handleVideoLoadStart}
             onLoadedData={handleVideoLoadedData}
             onError={handleVideoError}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={() => sendHeartbeat()}
           />
           
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
@@ -212,59 +212,26 @@ export default function LessonVideo({
         <div className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">{lessonTitle}</h2>
           
-          {onNavigate && (
-            <div className="flex justify-between mt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => previousLesson && onNavigate(previousLesson)}
-                disabled={!previousLesson}
-              >
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Previous Lesson
-              </Button>
-              
-              <Button 
-                onClick={() => nextLesson && onNavigate(nextLesson)}
-                disabled={!nextLesson}
-              >
-                Next Lesson
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <div className="flex justify-between mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => previousLesson && onNavigate(previousLesson)}
+              disabled={!previousLesson}
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Previous Lesson
+            </Button>
+            
+            <Button 
+              onClick={() => nextLesson && onNavigate(nextLesson)}
+              disabled={!nextLesson}
+            >
+              Next Lesson
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardContent>
-
-      {/* Attendance Warning Dialogs */}
-      <AttendanceWarning
-        type="inactive"
-        isOpen={attendance.showInactiveWarning}
-        onClose={() => attendance.setShowInactiveWarning(false)}
-        onConfirm={() => {
-          attendance.resetWarnings()
-          handleWarningConfirm('inactive')
-        }}
-      />
-      
-      <AttendanceWarning
-        type="tab_switch"
-        isOpen={attendance.showTabSwitchWarning}
-        onClose={() => attendance.setShowTabSwitchWarning(false)}
-        onConfirm={() => {
-          attendance.resetWarnings()
-          handleWarningConfirm('tab_switch')
-        }}
-      />
-      
-      <AttendanceWarning
-        type="fast_forward"
-        isOpen={attendance.showFastForwardWarning}
-        onClose={() => attendance.setShowFastForwardWarning(false)}
-        onConfirm={() => {
-          attendance.resetWarnings()
-          handleWarningConfirm('fast_forward')
-        }}
-      />
     </Card>
   )
 } 
