@@ -1,10 +1,3 @@
-let userConfig = undefined
-try {
-  userConfig = await import('./v0-user-next.config')
-} catch (e) {
-  // ignore error
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -29,26 +22,29 @@ const nextConfig = {
   },
 }
 
-mergeConfig(nextConfig, userConfig)
-
-function mergeConfig(nextConfig, userConfig) {
-  if (!userConfig) {
-    return
-  }
-
-  for (const key in userConfig) {
-    if (
-      typeof nextConfig[key] === 'object' &&
-      !Array.isArray(nextConfig[key])
-    ) {
-      nextConfig[key] = {
-        ...nextConfig[key],
-        ...userConfig[key],
+// Try to load user config if it exists
+let userConfig = undefined
+try {
+  userConfig = await import('./v0-user-next.config')
+  
+  // Merge user config if it exists
+  if (userConfig) {
+    for (const key in userConfig) {
+      if (
+        typeof nextConfig[key] === 'object' &&
+        !Array.isArray(nextConfig[key])
+      ) {
+        nextConfig[key] = {
+          ...nextConfig[key],
+          ...userConfig[key],
+        }
+      } else {
+        nextConfig[key] = userConfig[key]
       }
-    } else {
-      nextConfig[key] = userConfig[key]
     }
   }
+} catch (e) {
+  // Ignore error if user config doesn't exist
 }
 
 export default nextConfig

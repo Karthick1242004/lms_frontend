@@ -13,10 +13,26 @@ interface CoursePageProps {
 
 export default async function CoursePage({ params }: CoursePageProps) {
   const session = await getServerSession(authOptions)
-  const course = await getCourseById(params.id)
+  
+  // Fetch course data from the backend API
+  let course;
+  try {
+    // Use the absolute URL for server component
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/courses/${params.id}`);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch course: ${response.status} ${response.statusText}`);
+      return notFound();
+    }
+    
+    course = await response.json();
+  } catch (error) {
+    console.error("Error fetching course:", error);
+    return notFound();
+  }
 
   if (!course) {
-    notFound()
+    return notFound();
   }
 
   return (

@@ -53,27 +53,25 @@ export async function POST(request: Request) {
     const currentTimeInMinutes = currentTime / 60
     const percentageWatched = (currentTimeInMinutes / lessonDurationInMinutes) * 100
     
-    // Update or create the lesson progress
-    const result = await db.collection("attendance").updateOne(
-      { 
-        userId: session.user.id, 
-        courseId: courseId,
-        moduleIndex: moduleIndex,
-        lessonIndex: lessonIndex
-      },
+    // Calculate lesson status
+    const lessonStatus = percentageWatched >= 90 ? "completed" : "in-progress"
+
+    // Update the user's attendance record
+    const result = await db.collection("userProgress").updateOne(
+      { userId: session.user.id },
       {
         $set: {
-          userId: session.user.id,
-          courseId: courseId,
-          moduleName: module.title,
-          lessonName: lesson.title,
-          moduleIndex: moduleIndex,
-          lessonIndex: lessonIndex,
-          currentTime: currentTime,
-          totalDuration: totalDuration,
-          percentageWatched: percentageWatched,
-          status: percentageWatched >= 90 ? "completed" : "in-progress",
-          lastUpdated: new Date()
+          [`courses.${courseId}.modules.${moduleIndex}.lessons.${lessonIndex}`]: {
+            moduleName: module.title,
+            lessonName: lesson.title,
+            currentTime: currentTime,
+            totalDuration: totalDuration,
+            percentageWatched: percentageWatched,
+            status: lessonStatus,
+            lastUpdated: new Date()
+          },
+          [`courses.${courseId}.lastAccessed`]: new Date(),
+          [`courses.${courseId}.title`]: course.title
         }
       },
       { upsert: true }
@@ -83,7 +81,7 @@ export async function POST(request: Request) {
       success: true,
       message: "Attendance updated successfully",
       percentageWatched: percentageWatched,
-      status: percentageWatched >= 90 ? "completed" : "in-progress"
+      status: lessonStatus
     })
   } catch (error) {
     console.error("Error updating attendance:", error)

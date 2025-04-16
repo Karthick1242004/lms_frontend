@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: {
+    id: string
+  }
+}
+
+export async function GET(request: Request, { params }: RouteParams) {
   if (!params.id) {
     return NextResponse.json(
       { error: "Course ID is required" },
@@ -14,7 +17,6 @@ export async function GET(
 
   try {
     const { db } = await connectToDatabase()
-    console.log("Fetching course with ID:", params.id)
     
     const course = await db.collection("coursedetails").findOne({ id: params.id })
     
@@ -24,7 +26,7 @@ export async function GET(
         { status: 404 }
       )
     }
-    
+
     return NextResponse.json(course)
   } catch (error) {
     console.error("Error fetching course:", error)

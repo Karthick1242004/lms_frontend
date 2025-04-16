@@ -4,19 +4,15 @@ import { connectToDatabase } from "@/lib/mongodb"
 export async function GET() {
   try {
     const { db } = await connectToDatabase()
-    console.log("Connected to database successfully")
-
-    const courses = await db.collection("coursedetails").find({}).toArray()
-    console.log("Fetched courses:", courses)
+    
+    const courses = await db.collection("coursedetails").find().toArray()
     
     if (!courses || courses.length === 0) {
-      console.log("No courses found in the collection")
-      return NextResponse.json([])
+      return NextResponse.json({ courses: [] })
     }
-    
-    return NextResponse.json(courses)
+
+    return NextResponse.json({ courses })
   } catch (error) {
-    console.error("Error fetching courses:", error)
     return NextResponse.json(
       { error: "Failed to fetch courses" },
       { status: 500 }

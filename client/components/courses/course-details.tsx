@@ -247,13 +247,10 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
 
   // Get lesson status from attendance data
   const getLessonStatus = (moduleIndex: number, lessonIndex: number) => {
-    if (!attendanceData || !attendanceData.attendance) return null
+    if (!attendanceData?.courseProgress?.lessonStatus) return null
     
-    const lessonAttendance = attendanceData.attendance.find(
-      (record: any) => record.moduleIndex === moduleIndex && record.lessonIndex === lessonIndex
-    )
-    
-    return lessonAttendance ? lessonAttendance.status : null
+    const key = `${moduleIndex}-${lessonIndex}`
+    return attendanceData.courseProgress.lessonStatus[key] || null
   }
 
   return (
@@ -288,6 +285,10 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
               <TabsTrigger value="resources">Resources</TabsTrigger>
+            </TabsList>
+
+            <TabsList className="mt-2 grid w-full grid-cols-1">
+              <TabsTrigger value="learning-pathway">Learning Pathway</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
@@ -422,6 +423,117 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                       </li>
                     ))}
                   </ul>
+                </div>
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="learning-pathway">
+              <CardContent className="p-6">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Your Learning Journey</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Overall Progress: </span>
+                      <span className="text-sm font-bold">
+                        {isLoadingAttendance ? "Loading..." : `${attendanceData?.courseProgress?.overallProgress || 0}%`}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    {/* Main pathway line */}
+                    <div className="absolute left-4 top-0 bottom-0 w-1 bg-muted"></div>
+                    
+                    {course.syllabus?.map((module, moduleIndex) => {
+                      // Get module progress data
+                      const moduleProgress = !isLoadingAttendance && 
+                        attendanceData?.courseProgress?.moduleProgress?.find(
+                          (m: any) => m.moduleIndex === moduleIndex
+                        );
+                      
+                      const progress = moduleProgress?.progress || 0;
+                      const isCompleted = progress === 100;
+                      const inProgress = progress > 0 && progress < 100;
+                      
+                      return (
+                        <div key={moduleIndex} className="mb-8 relative">
+                          {/* Module node */}
+                          <div className={`absolute left-4 w-6 h-6 rounded-full -translate-x-2.5 flex items-center justify-center ${
+                            isCompleted 
+                              ? "bg-green-500" 
+                              : inProgress 
+                                ? "bg-primary" 
+                                : "bg-muted-foreground"
+                          }`}>
+                            {isCompleted ? (
+                              <CheckCircle className="h-4 w-4 text-white" />
+                            ) : (
+                              <span className="text-white text-xs">{moduleIndex + 1}</span>
+                            )}
+                          </div>
+                          
+                          {/* Module content */}
+                          <div className="ml-10 pb-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-md font-semibold">{module.title}</h4>
+                              <Badge variant={isCompleted ? "outline" : "secondary"} className={isCompleted ? "border-green-500 text-green-500" : ""}>
+                                {isCompleted 
+                                  ? "Completed" 
+                                  : inProgress 
+                                    ? `${progress}% Complete` 
+                                    : "Not Started"}
+                              </Badge>
+                            </div>
+                            
+                            <p className="text-sm text-muted-foreground my-2">{module.description}</p>
+                            
+                            {/* Module progress bar */}
+                            <div className="w-full bg-muted rounded-full h-2 mb-3">
+                              <div 
+                                className={`h-2 rounded-full ${isCompleted ? "bg-green-500" : "bg-primary"}`}
+                                style={{ width: `${progress}%` }}
+                              ></div>
+                            </div>
+                            
+                            {/* Lesson list */}
+                            <div className="space-y-2 mt-3">
+                              {module.lessons.map((lesson, lessonIndex) => {
+                                const lessonStatus = getLessonStatus(moduleIndex, lessonIndex);
+                                const isLessonCompleted = lessonStatus?.status === "completed";
+                                const isLessonInProgress = lessonStatus?.status === "in-progress";
+                                
+                                return (
+                                  <div
+                                    key={lessonIndex}
+                                    className={`flex items-center p-2 rounded-md border transition-colors cursor-pointer ${
+                                      isLessonCompleted 
+                                        ? "border-green-500 bg-green-50 dark:bg-green-950/20" 
+                                        : isLessonInProgress 
+                                          ? "border-primary bg-primary/10"
+                                          : "hover:bg-accent/50"
+                                    }`}
+                                    onClick={() => handleLessonClick(moduleIndex, lessonIndex, lesson.title)}
+                                  >
+                                    <div className="flex-shrink-0 w-6 h-6 mr-2 flex items-center justify-center">
+                                      {isLessonCompleted ? (
+                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                      ) : isLessonInProgress ? (
+                                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                                      ) : (
+                                        <div className="h-2 w-2 rounded-full border border-muted-foreground"></div>
+                                      )}
+                                    </div>
+                                    <span className="text-sm">{lesson.title}</span>
+                                    <span className="ml-auto text-xs text-muted-foreground">{lesson.duration}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </TabsContent>

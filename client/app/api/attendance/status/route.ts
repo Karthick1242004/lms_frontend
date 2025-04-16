@@ -26,10 +26,10 @@ export async function GET(request: Request) {
 
     const { db } = await connectToDatabase()
     
-    // Get the user's attendance records for this course
-    const attendanceRecords = await db.collection("attendance")
-      .find({ userId: session.user.id, courseId: courseId })
-      .toArray()
+    // Get the user's progress data for this course
+    const userProgress = await db.collection("userProgress").findOne(
+      { userId: session.user.id }
+    )
     
     // Get the course details to calculate the overall progress
     const course = await db.collection("coursedetails").findOne({ id: courseId })
@@ -51,8 +51,18 @@ export async function GET(request: Request) {
         totalLessons += module.lessons.length
       })
       
-      // Count completed lessons
-      completedLessons = attendanceRecords.filter(record => record.status === "completed").length
+      // Count completed lessons from the new structure
+      if (userProgress?.courses?.[courseId]?.modules) {
+        Object.values(userProgress.courses[courseId].modules).forEach((module: any) => {
+          if (module.lessons) {
+            Object.values(module.lessons).forEach((lesson: any) => {
+              if (lesson.status === "completed") {
+                completedLessons++
+              }
+            })
+          }
+        })
+      }
     }
     
     // Calculate overall progress percentage
@@ -63,9 +73,17 @@ export async function GET(request: Request) {
     // Get module progress
     const moduleProgress = course.syllabus ? course.syllabus.map((module, moduleIndex) => {
       const moduleLessons = module.lessons.length
-      const moduleCompletedLessons = attendanceRecords.filter(
-        record => record.moduleIndex === moduleIndex && record.status === "completed"
-      ).length
+      let moduleCompletedLessons = 0
+      
+      // Count completed lessons in this module
+      const moduleData = userProgress?.courses?.[courseId]?.modules?.[moduleIndex]
+      if (moduleData?.lessons) {
+        Object.values(moduleData.lessons).forEach((lesson: any) => {
+          if (lesson.status === "completed") {
+            moduleCompletedLessons++
+          }
+        })
+      }
       
       return {
         moduleIndex,
@@ -77,13 +95,28 @@ export async function GET(request: Request) {
       }
     }) : []
 
+    // Get lesson status for each lesson
+    const lessonStatus = {}
+    if (userProgress?.courses?.[courseId]?.modules) {
+      Object.entries(userProgress.courses[courseId].modules).forEach(([moduleIndex, moduleData]: [string, any]) => {
+        if (moduleData.lessons) {
+          Object.entries(moduleData.lessons).forEach(([lessonIndex, lessonData]: [string, any]) => {
+            lessonStatus[`${moduleIndex}-${lessonIndex}`] = {
+              status: lessonData.status,
+              percentageWatched: lessonData.percentageWatched
+            }
+          })
+        }
+      })
+    }
+
     return NextResponse.json({
-      attendance: attendanceRecords,
       courseProgress: {
         totalLessons,
         completedLessons,
         overallProgress,
-        moduleProgress
+        moduleProgress,
+        lessonStatus
       }
     })
   } catch (error) {
