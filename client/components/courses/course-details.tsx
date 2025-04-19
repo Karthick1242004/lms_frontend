@@ -589,6 +589,33 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                       }
                     </p>
                   </div>
+                  
+                  {/* Assessment Button */}
+                  <div className="pt-4">
+                    <Button 
+                      className="w-full"
+                      variant={isLoadingAttendance || (attendanceData?.courseProgress?.overallProgress || 0) < 100 ? "outline" : "default"}
+                      disabled={isLoadingAttendance || (attendanceData?.courseProgress?.overallProgress || 0) < 100}
+                      onClick={() => {
+                        // Navigate to assessment page
+                        if (!isLoadingAttendance && (attendanceData?.courseProgress?.overallProgress || 0) === 100) {
+                          router.push(`/dashboard/courses/${courseId}/assessment`)
+                        }
+                      }}
+                    >
+                      {isLoadingAttendance 
+                        ? "Loading..." 
+                        : (attendanceData?.courseProgress?.overallProgress || 0) === 100 
+                          ? "Take Assessment" 
+                          : `Complete course to unlock assessment (${attendanceData?.courseProgress?.overallProgress || 0}%)`
+                      }
+                    </Button>
+                    {!isLoadingAttendance && (attendanceData?.courseProgress?.overallProgress || 0) < 100 && (
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        Complete all lessons to unlock the final assessment
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-4">
