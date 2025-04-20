@@ -55,6 +55,7 @@
     "next-auth": "^4.24.11",
     "next-themes": "latest",
     "nodemailer": "latest",
+    "puppeteer": "^24.6.1",
     "react": "^19",
     "react-day-picker": "8.10.1",
     "react-dom": "^19",

@@ -9,8 +9,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { AlertCircle, CheckCircle, TimerIcon, LockIcon, MaximizeIcon } from "lucide-react"
+import { AlertCircle, CheckCircle, TimerIcon, LockIcon, MaximizeIcon, Award } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import CertificateModal from "@/components/certificate/certificate-modal"
+import { generateCertificateId } from "@/lib/utils"
 
 interface AssessmentPageProps {
   params: Promise<{
@@ -43,6 +45,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [needsRestart, setNeedsRestart] = useState(false)
   const [showReview, setShowReview] = useState(false)
+  const [showCertificate, setShowCertificate] = useState(false)
   
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const pageRef = useRef<HTMLDivElement>(null)
@@ -62,6 +65,41 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
       }
       return response.json()
     },
+  })
+  
+  // Add a new query to fetch course details
+  const { 
+    data: courseDetails,
+    refetch: refetchCourseDetails
+  } = useQuery({
+    queryKey: ["course-details", courseId],
+    queryFn: async () => {
+      const response = await fetch(`/api/courses/${courseId}`)
+      if (!response.ok) {
+        console.error("Failed to fetch course details:", await response.text())
+        return null
+      }
+      return response.json()
+    },
+    enabled: !!courseId,
+    retry: 2
+  })
+  
+  // Add a new query to fetch user details
+  const {
+    data: userDetails,
+    refetch: refetchUserDetails
+  } = useQuery({
+    queryKey: ["user-details"],
+    queryFn: async () => {
+      const response = await fetch('/api/user')
+      if (!response.ok) {
+        console.error("Failed to fetch user details:", await response.text())
+        return null
+      }
+      return response.json()
+    },
+    retry: 2
   })
   
   // Reset selected option when question changes
@@ -256,6 +294,12 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
+      
+      // If passed, ensure we have the necessary data for certificate
+      if (data.passed) {
+        refetchCourseDetails()
+        refetchUserDetails()
+      }
     } catch (error) {
       console.error("Error submitting assessment:", error)
       toast({
@@ -412,6 +456,12 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
   
   // Assessment results view
   if (assessmentComplete && results) {
+    // Add logging to debug
+    console.log("Assessment results:", results);
+    console.log("Show certificate condition:", results.passed);
+    console.log("Course details:", courseDetails);
+    console.log("User details:", userDetails);
+    
     if (showReview) {
       return (
         <div ref={pageRef} className="flex flex-col items-center justify-center min-h-screen p-6 bg-background overflow-auto">
@@ -525,6 +575,16 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
                 </p>
               </div>
               
+              {results.passed && (
+                <Button
+                  onClick={() => setShowCertificate(true)}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  <Award className="mr-2 h-5 w-5" />
+                  View & Download Certificate
+                </Button>
+              )}
+              
               <Button 
                 onClick={() => setShowReview(true)} 
                 variant="outline" 
@@ -534,10 +594,35 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
               </Button>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-center gap-4 pb-6">
+          <CardFooter className="flex justify-center gap-4 pb-6 flex-wrap">
             <Button variant="outline" onClick={() => router.push(`/dashboard/courses/${courseId}`)}>
               Return to Course
             </Button>
+            
+            {/* Debug Certificate Button - Always shown if passed */}
+            {results.passed && (
+              <Button 
+                onClick={() => {
+                  console.log("Debug Certificate Button Clicked");
+                  console.log("Course ID:", courseId);
+                  console.log("User Details:", userDetails);
+                  console.log("Course Details:", courseDetails);
+                  
+                  // Force refetch data
+                  refetchCourseDetails();
+                  refetchUserDetails();
+                  
+                  // Force show certificate modal after a short delay
+                  setTimeout(() => {
+                    setShowCertificate(true);
+                  }, 500);
+                }}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                Debug: Download Certificate
+              </Button>
+            )}
+            
             {!results.passed && (
               <Button onClick={restartAssessment}>
                 Try Again
@@ -545,6 +630,32 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
             )}
           </CardFooter>
         </Card>
+        
+        {/* Debug info - Output info about cert availability */}
+        {results.passed && (
+          <div className="mt-4 p-4 border rounded-md bg-slate-50 dark:bg-slate-900 w-full max-w-2xl text-sm">
+            <h3 className="font-bold mb-2">Debug Information:</h3>
+            <p>Certificate Button Should Show: {results.passed ? 'Yes' : 'No'}</p>
+            <p>User Data Loaded: {userDetails ? 'Yes' : 'No'}</p>
+            <p>Course Data Loaded: {courseDetails ? 'Yes' : 'No'}</p>
+            <p>Certificate Modal State: {showCertificate ? 'Open' : 'Closed'}</p>
+            <p>Score: {results.score}% (Passing: 75%)</p>
+          </div>
+        )}
+        
+        {/* Certificate Modal */}
+        {showCertificate && (
+          <CertificateModal
+            isOpen={showCertificate}
+            onClose={() => setShowCertificate(false)}
+            userName={userDetails?.name || "Student Name"}
+            courseName={courseDetails?.title || "Course Title"}
+            instructorName={courseDetails?.instructor || "Instructor"}
+            completionDate={new Date()}
+            certificateId={generateCertificateId(userDetails?.id || "user", courseId)}
+            courseId={courseId}
+          />
+        )}
       </div>
     )
   }

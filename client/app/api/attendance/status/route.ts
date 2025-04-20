@@ -116,7 +116,9 @@ export async function GET(request: Request) {
         completedLessons,
         overallProgress,
         moduleProgress,
-        lessonStatus
+        lessonStatus,
+        certificateEarned: userProgress?.courses?.[courseId]?.certificateEarned || false,
+        certificateDate: userProgress?.courses?.[courseId]?.certificateDate || null
       }
     })
   } catch (error) {

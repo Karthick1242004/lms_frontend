@@ -10,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { useStore } from "@/lib/store"
 import type { Course, Lesson } from "@/lib/types"
-import { CheckCircle, Clock, PlayCircle, Users, AlertCircle } from "lucide-react"
+import { CheckCircle, Clock, PlayCircle, Users, AlertCircle, Award } from "lucide-react"
 import LessonVideo from "./lesson-video"
 import { useQuery } from "@tanstack/react-query"
 import { fetchCourseById } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
+import { generateCertificateId } from "@/lib/utils"
+import CertificateModal from "@/components/certificate/certificate-modal"
 
 interface CourseDetailsProps {
   courseId: string
@@ -31,6 +33,7 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
   const { toast } = useToast()
   const { enrolledCourses, enrollInCourse, loadingEnrollment } = useStore()
   const [isEnrolling, setIsEnrolling] = useState(false)
+  const [showCertificate, setShowCertificate] = useState(false)
 
   const {
     data: course,
@@ -52,6 +55,20 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
       const response = await fetch(`/api/attendance/status?courseId=${courseId}`)
       if (!response.ok) {
         throw new Error("Failed to fetch attendance data")
+      }
+      return response.json()
+    },
+    enabled: !!courseId && enrolledCourses.includes(courseId)
+  })
+
+  // Add a new query to fetch user details
+  const { data: userDetails } = useQuery({
+    queryKey: ['user-details'],
+    queryFn: async () => {
+      const response = await fetch('/api/user')
+      if (!response.ok) {
+        console.error("Failed to fetch user details:", await response.text())
+        return null
       }
       return response.json()
     },
@@ -590,6 +607,19 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                     </p>
                   </div>
                   
+                  {/* Certificate Button */}
+                  {attendanceData?.courseProgress?.certificateEarned && (
+                    <div className="pt-4">
+                      <Button
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        onClick={() => setShowCertificate(true)}
+                      >
+                        <Award className="mr-2 h-5 w-5" />
+                        View Certificate
+                      </Button>
+                    </div>
+                  )}
+                  
                   {/* Assessment Button */}
                   <div className="pt-4">
                     <Button 
@@ -653,6 +683,20 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
           </Card>
         </div>
       </div>
+
+      {/* Certificate Modal */}
+      {showCertificate && userDetails && course && (
+        <CertificateModal
+          isOpen={showCertificate}
+          onClose={() => setShowCertificate(false)}
+          userName={userDetails.name}
+          courseName={course.title}
+          instructorName={course.instructor}
+          completionDate={attendanceData?.courseProgress?.certificateDate || new Date()}
+          certificateId={generateCertificateId(userDetails.id, courseId)}
+          courseId={courseId}
+        />
+      )}
     </div>
   )
 }
