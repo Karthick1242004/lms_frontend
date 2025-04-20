@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { ObjectId } from "mongodb"
 
 export async function GET(request: Request) {
   try {
@@ -21,21 +22,13 @@ export async function GET(request: Request) {
     
     const { db } = await connectToDatabase()
     
-    let query = {}
+    // Get all user progress records
+    const userProgressRecords = await db.collection("userProgress").find({}).toArray()
     
-    if (courseId) {
-      query = { courseId }
-    }
-    
-    // Get all attendance records matching the query
-    const attendanceRecords = await db.collection("attendance")
-      .find(query)
-      .toArray()
-
-    // Get user information for the records
-    const userIds = [...new Set(attendanceRecords.map(record => record.userId))]
+    // Get additional user information for the records
+    const userIds = userProgressRecords.map(record => record.userId)
     const users = await db.collection("users")
-      .find({ _id: { $in: userIds } })
+      .find({ _id: { $in: userIds.map(id => new ObjectId(id)) } })
       .project({ _id: 1, name: 1, email: 1 })
       .toArray()
     
@@ -51,34 +44,53 @@ export async function GET(request: Request) {
     // Organize data by course and user
     const attendanceByUser = {}
     
-    attendanceRecords.forEach(record => {
+    // Process user progress records
+    userProgressRecords.forEach(record => {
       const userId = record.userId
-      const courseId = record.courseId
-      const moduleName = record.moduleName
-      const lessonName = record.lessonName
+      const userCourses = record.courses || {}
       
-      if (!attendanceByUser[courseId]) {
-        attendanceByUser[courseId] = {}
-      }
+      // Filter by courseId if provided
+      const coursesToInclude = courseId 
+        ? (userCourses[courseId] ? { [courseId]: userCourses[courseId] } : {})
+        : userCourses
       
-      if (!attendanceByUser[courseId][userId]) {
-        attendanceByUser[courseId][userId] = {
-          user: userMap.get(userId) || { name: "Unknown", email: "Unknown" },
-          modules: {}
+      // For each course in user progress
+      Object.entries(coursesToInclude).forEach(([courseId, courseData]) => {
+        if (!attendanceByUser[courseId]) {
+          attendanceByUser[courseId] = {}
         }
-      }
-      
-      if (!attendanceByUser[courseId][userId].modules[moduleName]) {
-        attendanceByUser[courseId][userId].modules[moduleName] = {
-          lessons: {}
+        
+        if (!attendanceByUser[courseId][userId]) {
+          attendanceByUser[courseId][userId] = {
+            user: userMap.get(userId) || { name: "Unknown", email: "Unknown" },
+            modules: {}
+          }
         }
-      }
-      
-      attendanceByUser[courseId][userId].modules[moduleName].lessons[lessonName] = {
-        status: record.status,
-        percentageWatched: record.percentageWatched,
-        lastUpdated: record.lastUpdated
-      }
+        
+        // Process modules
+        const modules = courseData.modules || {}
+        Object.entries(modules).forEach(([moduleIndex, moduleData]) => {
+          const moduleName = moduleData.title || `Module ${moduleIndex}`
+          
+          if (!attendanceByUser[courseId][userId].modules[moduleName]) {
+            attendanceByUser[courseId][userId].modules[moduleName] = {
+              lessons: {}
+            }
+          }
+          
+          // Process lessons
+          const lessons = moduleData.lessons || {}
+          Object.entries(lessons).forEach(([lessonIndex, lessonData]) => {
+            const lessonName = lessonData.lessonName || `Lesson ${lessonIndex}`
+            
+            attendanceByUser[courseId][userId].modules[moduleName].lessons[lessonName] = {
+              status: lessonData.status,
+              percentageWatched: lessonData.percentageWatched,
+              lastUpdated: lessonData.lastUpdated
+            }
+          })
+        })
+      })
     })
     
     return NextResponse.json({
