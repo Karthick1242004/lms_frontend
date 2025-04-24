@@ -12,6 +12,7 @@ declare module "next-auth" {
       name?: string | null
       email?: string | null
       image?: string | null
+      role?: string | null
     }
   }
 }
@@ -60,6 +61,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           image: user.image,
+          role: user.role,
         }
       },
     }),
@@ -75,10 +77,22 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name
         token.email = user.email
         token.picture = user.image
+        token.role = user.role
       }
       if (account) {
         token.provider = account.provider
       }
+      
+      // If user exists in token but not role, fetch the user and get the role
+      if (token.email && !token.role) {
+        const client = await clientPromise;
+        const db = client.db("Mudhalvan");
+        const dbUser = await db.collection("users").findOne({ email: token.email });
+        if (dbUser && dbUser.role) {
+          token.role = dbUser.role;
+        }
+      }
+      
       return token
     },
     async session({ session, token }) {
@@ -87,6 +101,7 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string
         session.user.email = token.email as string
         session.user.image = token.picture as string
+        session.user.role = token.role as string
       }
       return session
     },
@@ -113,6 +128,11 @@ export const authOptions: NextAuthOptions = {
               }
             }
           );
+          
+          // Copy the role from the database to the session user
+          if (existingUser.role) {
+            user.role = existingUser.role;
+          }
         }
         return true;
       }

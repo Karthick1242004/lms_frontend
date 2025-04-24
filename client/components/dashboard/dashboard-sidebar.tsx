@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, Settings, Users } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, Settings, Users, PlusCircle, Library, UserPlus } from "lucide-react"
+import { useSession } from "next-auth/react"
 import {
   Sidebar,
   SidebarContent,
@@ -11,11 +12,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 
 export default function DashboardSidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  // Use a type safe approach to check for instructor role
+  const isInstructor = session?.user && 'role' in session.user && session.user.role === 'instructor'
 
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(`${path}/`)
@@ -47,6 +54,19 @@ export default function DashboardSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          
+          {/* Only show course creation for instructors */}
+          {isInstructor && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/dashboard/courses/create")}>
+                <Link href="/dashboard/courses/create">
+                  <PlusCircle className="h-4 w-4" />
+                  <span>Create Course</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/dashboard/attendance")}>
               <Link href="/dashboard/attendance">
@@ -73,6 +93,16 @@ export default function DashboardSidebar() {
                 <span>Settings</span>
               </Link>
             </SidebarMenuButton>
+            <SidebarMenuSub>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild isActive={isActive("/dashboard/settings/make-instructor")}>
+                  <Link href="/dashboard/settings/make-instructor">
+                    <UserPlus className="h-4 w-4" />
+                    <span>Become Instructor</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            </SidebarMenuSub>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>

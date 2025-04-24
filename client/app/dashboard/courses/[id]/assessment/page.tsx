@@ -575,7 +575,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
                 </p>
               </div>
               
-              {results.passed && (
+              {/* {results.passed && (
                 <Button
                   onClick={() => setShowCertificate(true)}
                   className="w-full bg-green-600 hover:bg-green-700"
@@ -583,7 +583,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
                   <Award className="mr-2 h-5 w-5" />
                   View & Download Certificate
                 </Button>
-              )}
+              )} */}
               
               <Button 
                 onClick={() => setShowReview(true)} 
@@ -600,7 +600,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
             </Button>
             
             {/* Debug Certificate Button - Always shown if passed */}
-            {results.passed && (
+            {/* {results.passed && (
               <Button 
                 onClick={() => {
                   console.log("Debug Certificate Button Clicked");
@@ -621,7 +621,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
               >
                 Debug: Download Certificate
               </Button>
-            )}
+            )} */}
             
             {!results.passed && (
               <Button onClick={restartAssessment}>
@@ -632,7 +632,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
         </Card>
         
         {/* Debug info - Output info about cert availability */}
-        {results.passed && (
+        {/* {results.passed && (
           <div className="mt-4 p-4 border rounded-md bg-slate-50 dark:bg-slate-900 w-full max-w-2xl text-sm">
             <h3 className="font-bold mb-2">Debug Information:</h3>
             <p>Certificate Button Should Show: {results.passed ? 'Yes' : 'No'}</p>
@@ -641,7 +641,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
             <p>Certificate Modal State: {showCertificate ? 'Open' : 'Closed'}</p>
             <p>Score: {results.score}% (Passing: 75%)</p>
           </div>
-        )}
+        )} */}
         
         {/* Certificate Modal */}
         {showCertificate && (
