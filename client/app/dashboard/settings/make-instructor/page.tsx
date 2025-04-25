@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
+import { isSuperAdmin } from '@/lib/auth-utils';
+import { redirect } from 'next/navigation';
 
 export default function MakeInstructorPage() {
   const { data: session } = useSession();
@@ -16,6 +18,11 @@ export default function MakeInstructorPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check if the user is super admin
+  if (session && !isSuperAdmin(session)) {
+    redirect('/dashboard');
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,43 +67,44 @@ export default function MakeInstructorPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <DashboardHeader 
-        heading="Make Instructor" 
-        text="Grant instructor privileges to yourself or another user"
+      <DashboardHeader
+        heading="Make Instructor"
+        text="Grant instructor privileges to a user"
       />
       <Separator />
       <div className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-md">
-          <Card>
-            <CardHeader>
-              <CardTitle>Instructor Privileges</CardTitle>
-              <CardDescription>
-                Enter the email address of the user you want to make an instructor.
-                You can use your own email to grant yourself instructor privileges.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleSubmit}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="email">Email Address</label>
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Set User Role</CardTitle>
+            <CardDescription>
+              Enter the email of the user you want to make an instructor
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleSubmit}>
+            <CardContent>
+              <div className="grid w-full items-center gap-4">
+                <div className="flex flex-col space-y-1.5">
                   <Input
                     id="email"
+                    placeholder="user@example.com"
                     type="email"
-                    placeholder="example@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Processing...' : 'Make Instructor'}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={() => router.back()}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Processing...' : 'Make Instructor'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
       </div>
     </div>
   );

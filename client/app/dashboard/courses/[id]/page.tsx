@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation"
-import { getCourseById } from "@/lib/api"
 import DashboardHeader from "@/components/dashboard/dashboard-header"
 import CourseDetails from "@/components/courses/course-details"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { connectToDatabase } from "@/lib/mongodb"
 
 interface CoursePageProps {
   params: {
@@ -14,24 +14,29 @@ interface CoursePageProps {
 export default async function CoursePage({ params }: CoursePageProps) {
   const session = await getServerSession(authOptions)
   
-  // Fetch course data from the backend API
-  let course;
-  try {
-    // Use the absolute URL for server component
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/courses/${params.id}`);
-    
-    if (!response.ok) {
-      console.error(`Failed to fetch course: ${response.status} ${response.statusText}`);
-      return notFound();
-    }
-    
-    course = await response.json();
-  } catch (error) {
-    console.error("Error fetching course:", error);
+  // Verify we have a valid ID parameter
+  if (!params.id) {
+    console.error("Missing course ID parameter");
     return notFound();
   }
 
-  if (!course) {
+  // Fetch course data directly from the database in server component
+  let course;
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Find the course by id
+    course = await db.collection("coursedetails").findOne({ id: params.id });
+    
+    if (!course) {
+      console.error(`Course not found with id: ${params.id}`);
+      return notFound();
+    }
+    
+    // Log the found course for verification
+    console.log(`Found course: ${course.title} with ID: ${params.id}`);
+  } catch (error) {
+    console.error("Error fetching course:", error);
     return notFound();
   }
 

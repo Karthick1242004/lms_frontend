@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, Settings, Users, PlusCircle, Library, UserPlus } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, Settings, Users, PlusCircle, Library, UserPlus, BarChart, Database } from "lucide-react"
 import { useSession } from "next-auth/react"
 import {
   Sidebar,
@@ -17,12 +17,15 @@ import {
   SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
+import { isSuperAdmin, isInstructor } from "@/lib/auth-utils"
 
 export default function DashboardSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  // Use a type safe approach to check for instructor role
-  const isInstructor = session?.user && 'role' in session.user && session.user.role === 'instructor'
+  
+  // Use utility functions for role checking
+  const userIsInstructor = isInstructor(session)
+  const userIsSuperAdmin = isSuperAdmin(session)
 
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(`${path}/`)
@@ -46,17 +49,17 @@ export default function DashboardSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
+          {/* <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/dashboard/courses")}>
               <Link href="/dashboard/courses">
                 <BookOpen className="h-4 w-4" />
                 <span>Courses</span>
               </Link>
             </SidebarMenuButton>
-          </SidebarMenuItem>
+          </SidebarMenuItem> */}
           
-          {/* Only show course creation for instructors */}
-          {isInstructor && (
+          {/* Only show course creation for instructors and super admin */}
+          {(userIsInstructor || userIsSuperAdmin) && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isActive("/dashboard/courses/create")}>
                 <Link href="/dashboard/courses/create">
@@ -67,14 +70,14 @@ export default function DashboardSidebar() {
             </SidebarMenuItem>
           )}
           
-          <SidebarMenuItem>
+          {/* <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/dashboard/attendance")}>
               <Link href="/dashboard/attendance">
                 <ListChecks className="h-4 w-4" />
                 <span>Attendance</span>
               </Link>
             </SidebarMenuButton>
-          </SidebarMenuItem>
+          </SidebarMenuItem> */}
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/dashboard/instructors")}>
               <Link href="/dashboard/instructors">
@@ -83,6 +86,44 @@ export default function DashboardSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          
+          {/* Only show admin section for super admin */}
+          {userIsSuperAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/dashboard/admin")}>
+                <Link href="/dashboard/admin">
+                  <Database className="h-4 w-4" />
+                  <span>Admin Panel</span>
+                </Link>
+              </SidebarMenuButton>
+              <SidebarMenuSub>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton asChild isActive={isActive("/dashboard/admin/users")}>
+                    <Link href="/dashboard/admin/users">
+                      <Users className="h-4 w-4" />
+                      <span>Users</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton asChild isActive={isActive("/dashboard/admin/enrollments")}>
+                    <Link href="/dashboard/admin/enrollments">
+                      <BookOpen className="h-4 w-4" />
+                      <span>Enrollments</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton asChild isActive={isActive("/dashboard/admin/progress")}>
+                    <Link href="/dashboard/admin/progress">
+                      <BarChart className="h-4 w-4" />
+                      <span>Progress</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              </SidebarMenuSub>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
         <SidebarSeparator />
         <SidebarMenu>
@@ -94,14 +135,17 @@ export default function DashboardSidebar() {
               </Link>
             </SidebarMenuButton>
             <SidebarMenuSub>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton asChild isActive={isActive("/dashboard/settings/make-instructor")}>
-                  <Link href="/dashboard/settings/make-instructor">
-                    <UserPlus className="h-4 w-4" />
-                    <span>Become Instructor</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
+              {/* Only show "Become Instructor" for super admin */}
+              {userIsSuperAdmin && (
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton asChild isActive={isActive("/dashboard/settings/make-instructor")}>
+                    <Link href="/dashboard/settings/make-instructor">
+                      <UserPlus className="h-4 w-4" />
+                      <span>Become Instructor</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              )}
             </SidebarMenuSub>
           </SidebarMenuItem>
         </SidebarMenu>

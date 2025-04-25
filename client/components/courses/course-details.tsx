@@ -44,6 +44,21 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     queryFn: () => fetchCourseById(courseId),
   })
 
+  // Add a effect to handle errors
+  useEffect(() => {
+    if (error) {
+      console.error("Error fetching course details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load course details. Please try again.",
+        variant: "destructive",
+      });
+    }
+    if (course) {
+      console.log("Successfully loaded course details:", course);
+    }
+  }, [error, course, toast]);
+
   // Query for fetching attendance data
   const {
     data: attendanceData,
