@@ -21,21 +21,39 @@ export default async function AdminProgressPage() {
   // Fetch student progress data
   const { db } = await connectToDatabase()
   
-  // Get student progress with course and user information
-  const progressData = await db.collection("enrollments").aggregate([
+  // Get student progress from userProgress collection
+  const progressData = await db.collection("userProgress").aggregate([
+    {
+      $unwind: {
+        path: "$courses",
+        preserveNullAndEmptyArrays: true
+      }
+    },
+    {
+      $project: {
+        userEmail: 1,
+        courseId: { $objectToArray: "$courses" },
+      }
+    },
+    {
+      $unwind: {
+        path: "$courseId",
+        preserveNullAndEmptyArrays: true
+      }
+    },
     {
       $lookup: {
         from: "users",
-        localField: "userId",
-        foreignField: "_id",
+        localField: "userEmail",
+        foreignField: "email",
         as: "userInfo"
       }
     },
     {
       $lookup: {
-        from: "courses",
-        localField: "courseId",
-        foreignField: "_id",
+        from: "coursedetails",
+        localField: "courseId.k",
+        foreignField: "id",
         as: "courseInfo"
       }
     },
@@ -54,11 +72,61 @@ export default async function AdminProgressPage() {
     {
       $project: {
         _id: 1,
-        progress: 1,
-        lastActivityDate: 1,
+        userEmail: 1,
+        courseId: "$courseId.k",
+        progress: "$courseId.v.progress",
+        lastActivityDate: "$courseId.v.lastAccessed",
+        modulesData: { $objectToArray: { $ifNull: ["$courseId.v.modules", {}] } },
         "userInfo.name": 1,
         "userInfo.email": 1,
         "courseInfo.title": 1
+      }
+    },
+    {
+      $addFields: {
+        totalLessons: { 
+          $reduce: {
+            input: "$modulesData",
+            initialValue: 0,
+            in: { 
+              $add: [
+                "$$value", 
+                { $size: { $objectToArray: { $ifNull: ["$$this.v.lessons", {}] } } }
+              ]
+            }
+          }
+        },
+        completedLessons: {
+          $reduce: {
+            input: "$modulesData",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                {
+                  $size: {
+                    $filter: {
+                      input: { $objectToArray: { $ifNull: ["$$this.v.lessons", {}] } },
+                      as: "lesson",
+                      cond: { $eq: ["$$lesson.v.status", "completed"] }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      $addFields: {
+        progress: { 
+          $cond: [
+            { $gt: ["$totalLessons", 0] },
+            { $multiply: [{ $divide: ["$completedLessons", "$totalLessons"] }, 100] },
+            0
+          ]
+        }
       }
     },
     {
@@ -74,16 +142,16 @@ export default async function AdminProgressPage() {
     {
       $lookup: {
         from: "users",
-        localField: "userId",
-        foreignField: "_id",
+        localField: "userEmail",
+        foreignField: "email",
         as: "userInfo"
       }
     },
     {
       $lookup: {
-        from: "courses",
+        from: "coursedetails",
         localField: "courseId",
-        foreignField: "_id",
+        foreignField: "id",
         as: "courseInfo"
       }
     },
@@ -102,11 +170,14 @@ export default async function AdminProgressPage() {
     {
       $project: {
         _id: 1,
+        userEmail: 1,
+        courseId: 1,
         score: 1,
         passed: 1,
         completedAt: 1,
-        assessmentTitle: 1,
+        answers: 1,
         "userInfo.name": 1,
+        "userInfo.email": 1,
         "courseInfo.title": 1
       }
     },
@@ -159,16 +230,26 @@ export default async function AdminProgressPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {progressData.map((item) => (
-                    <TableRow key={item._id.toString()}>
-                      <TableCell className="font-medium">{item.userInfo?.name || 'Unknown'}</TableCell>
-                      <TableCell>{item.courseInfo?.title || 'Unknown Course'}</TableCell>
+                  {progressData.map((item, idx) => (
+                    <TableRow key={`${item._id?.toString()}-${idx}`}>
+                      <TableCell className="font-medium">
+                        {item.userInfo?.name || item.userEmail || 'Unknown'}
+                      </TableCell>
+                      <TableCell>{item.courseInfo?.title || `Course ID: ${item.courseId}` || 'Unknown Course'}</TableCell>
                       <TableCell className="w-1/3">
                         <div className="flex flex-col space-y-1">
                           <div className="flex justify-between">
-                            <span className="text-xs">{item.progress || 0}% Complete</span>
+                            <span className="text-xs">
+                              {Math.round(item.progress || 0)}% Complete
+                              {item.completedLessons !== undefined && 
+                               item.totalLessons !== undefined && (
+                                <span className="ml-2">
+                                  ({item.completedLessons}/{item.totalLessons} lessons)
+                                </span>
+                              )}
+                            </span>
                           </div>
-                          <Progress value={item.progress || 0} max={100} />
+                          <Progress value={Math.round(item.progress || 0)} max={100} />
                         </div>
                       </TableCell>
                       <TableCell>
@@ -208,10 +289,12 @@ export default async function AdminProgressPage() {
                 </TableHeader>
                 <TableBody>
                   {assessmentResults.map((result) => (
-                    <TableRow key={result._id.toString()}>
-                      <TableCell className="font-medium">{result.userId || 'Unknown'}</TableCell>
-                      <TableCell>{result.courseInfo?.title || 'Unknown Course'}</TableCell>
-                      <TableCell>{result.assessmentTitle || 'Quiz'}</TableCell>
+                    <TableRow key={result._id?.toString()}>
+                      <TableCell className="font-medium">
+                        {result.userInfo?.name || result.userEmail || 'Unknown'}
+                      </TableCell>
+                      <TableCell>{result.courseInfo?.title || `Course ID: ${result.courseId}` || 'Unknown Course'}</TableCell>
+                      <TableCell>{result.answers ? 'Quiz' : 'Assessment'}</TableCell>
                       <TableCell>{result.score ? `${result.score}%` : 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={result.passed ? 'default' : 'destructive'}>
