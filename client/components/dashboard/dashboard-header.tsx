@@ -16,6 +16,7 @@ import { signOut } from "next-auth/react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Moon, Sun, UserIcon } from "lucide-react"
 import React from "react"
+import Link from "next/link"
 
 interface DashboardHeaderProps {
   user?: {
@@ -85,9 +86,11 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <UserIcon className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/profile">
+              <UserIcon className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>Log out</DropdownMenuItem>
