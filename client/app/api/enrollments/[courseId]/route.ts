@@ -90,6 +90,14 @@ export async function GET(
     }
 
     const courseId = params.courseId
+    
+    if (!courseId) {
+      return NextResponse.json(
+        { error: "Course ID is required" },
+        { status: 400 }
+      )
+    }
+    
     const { db } = await connectToDatabase()
     
     // Check if enrolled
@@ -105,7 +113,8 @@ export async function GET(
     return NextResponse.json({
       enrolled: true,
       enrollmentDate: enrollment.enrolledAt,
-      progress: enrollment.progress || 0
+      progress: enrollment.progress || 0,
+      enrollmentDetails: enrollment
     })
   } catch (error) {
     console.error("Error checking enrollment status:", error)
@@ -163,51 +172,6 @@ export async function DELETE(
     console.error("Error unenrolling from course:", error)
     return NextResponse.json(
       { error: "Failed to unenroll from course" },
-      { status: 500 }
-    )
-  }
-}
-
-// Check if enrolled in a specific course
-export async function GET(
-  request: Request,
-  { params }: { params: { courseId: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
-
-    const courseId = params.courseId
-    
-    if (!courseId) {
-      return NextResponse.json(
-        { error: "Course ID is required" },
-        { status: 400 }
-      )
-    }
-
-    const { db } = await connectToDatabase()
-    
-    // Check if enrollment exists
-    const enrollment = await db.collection("enrollments").findOne({
-      userEmail: session.user.email,
-      courseId: courseId
-    })
-    
-    return NextResponse.json({
-      enrolled: !!enrollment,
-      enrollmentDetails: enrollment || null
-    })
-  } catch (error) {
-    console.error("Error checking enrollment:", error)
-    return NextResponse.json(
-      { error: "Failed to check enrollment status" },
       { status: 500 }
     )
   }
