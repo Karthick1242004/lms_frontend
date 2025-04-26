@@ -1,5 +1,11 @@
 import type { Course } from "@/lib/types"
 
+// Define the Instructor type
+export interface Instructor {
+  _id: string;
+  name: string;
+  email: string;
+}
 
 export async function fetchCourses(): Promise<Course[]> {
   try {
@@ -54,6 +60,24 @@ export async function getCourseById(id: string): Promise<Course | undefined> {
   } catch (error) {
     console.error("Error in getCourseById:", error);
     return undefined;
+  }
+}
+
+export async function fetchInstructors(): Promise<Instructor[]> {
+  try {
+    const response = await fetch("/api/instructors")
+    if (!response.ok) {
+      console.error("API response not OK:", response.status, response.statusText);
+      throw new Error("Failed to fetch instructors")
+    }
+    
+    const data = await response.json()
+    
+    // Return the instructors array from the response
+    return data.instructors || [];
+  } catch (error) {
+    console.error("Error fetching instructors:", error);
+    return []; // Return empty array instead of throwing error
   }
 }
 

@@ -14,12 +14,14 @@ import { useToast } from "@/components/ui/use-toast"
 import { Plus, X, Save, Trash2 } from "lucide-react"
 import CourseVideoUploader from "@/components/courses/course-video-uploader"
 import type { Course, Module, Lesson, Resource } from "@/lib/types"
+import { fetchInstructors, Instructor } from "@/lib/api"
 
 export default function CreateCoursePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const [instructors, setInstructors] = useState<Instructor[]>([])
   
   const [formData, setFormData] = useState<Course>({
     id: "",
@@ -180,13 +182,32 @@ export default function CreateCoursePage() {
     });
   };
 
+  // Fetch instructors when component mounts
+  useEffect(() => {
+    const getInstructors = async () => {
+      try {
+        const instructorsList = await fetchInstructors();
+        setInstructors(instructorsList);
+      } catch (error) {
+        console.error("Failed to fetch instructors:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load instructors list.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    getInstructors();
+  }, [toast]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       // Validate required fields
-      if (!formData.title || !formData.description || !formData.level || !formData.duration) {
+      if (!formData.title || !formData.description || !formData.level || !formData.duration || !formData.instructor) {
         throw new Error("Please fill in all required fields");
       }
 
@@ -295,7 +316,7 @@ export default function CreateCoursePage() {
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="level">Level *</Label>
                 <Select
@@ -322,6 +343,24 @@ export default function CreateCoursePage() {
                   placeholder="e.g., 8 weeks"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="instructor">Instructor *</Label>
+                <Select
+                  value={formData.instructor}
+                  onValueChange={(value) => handleSelectChange("instructor", value)}
+                >
+                  <SelectTrigger id="instructor">
+                    <SelectValue placeholder="Select instructor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instructors.map((instructor) => (
+                      <SelectItem key={instructor._id} value={instructor.name}>
+                        {instructor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="language">Language</Label>

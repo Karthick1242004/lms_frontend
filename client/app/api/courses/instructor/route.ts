@@ -7,10 +7,10 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    // Check if user is authenticated and is an instructor
-    if (!session || session.user.role !== "instructor") {
+    // Check if user is authenticated and is an instructor or admin
+    if (!session || (session.user.role !== "instructor" && session.user.role !== "admin")) {
       return NextResponse.json(
-        { error: "Unauthorized - Only instructors can create courses" },
+        { error: "Unauthorized - Only instructors or admins can create courses" },
         { status: 401 }
       );
     }
@@ -18,8 +18,10 @@ export async function POST(request: Request) {
     const { db } = await connectToDatabase();
     const courseData = await request.json();
     
-    // Add the instructor info from the session
-    courseData.instructor = session.user.name || "Unknown Instructor";
+    // Use the instructor from the form data if provided, otherwise use the session user
+    if (!courseData.instructor) {
+      courseData.instructor = session.user.name || "Unknown Instructor";
+    }
     
     // Generate a unique ID for new courses
     if (!courseData.id) {
