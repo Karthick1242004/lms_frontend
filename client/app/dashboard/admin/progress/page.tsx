@@ -209,7 +209,7 @@ export default async function AdminProgressPage() {
                 <TableBody>
                   {assessmentResults.map((result) => (
                     <TableRow key={result._id.toString()}>
-                      <TableCell className="font-medium">{result.userInfo?.name || 'Unknown'}</TableCell>
+                      <TableCell className="font-medium">{result.userId || 'Unknown'}</TableCell>
                       <TableCell>{result.courseInfo?.title || 'Unknown Course'}</TableCell>
                       <TableCell>{result.assessmentTitle || 'Quiz'}</TableCell>
                       <TableCell>{result.score ? `${result.score}%` : 'N/A'}</TableCell>

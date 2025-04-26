@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     
     // Get all assessment results for the user
     const results = await db.collection("assessmentResults")
-      .find({ userId: session.user.id })
+      .find({ userEmail: session.user.email })
       .toArray()
     
     // Get course information for each assessment

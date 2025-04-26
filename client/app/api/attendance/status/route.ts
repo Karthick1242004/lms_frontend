@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     
     // Get the user's progress data for this course
     const userProgress = await db.collection("userProgress").findOne(
-      { userId: session.user.id }
+      { userEmail: session.user.email }
     )
     
     // Get the course details to calculate the overall progress
@@ -65,66 +65,41 @@ export async function GET(request: Request) {
       }
     }
     
-    // Calculate overall progress percentage
-    const overallProgress = totalLessons > 0 
+    // Calculate progress percentage
+    const progressPercentage = totalLessons > 0 
       ? Math.round((completedLessons / totalLessons) * 100) 
       : 0
     
-    // Get module progress
-    const moduleProgress = course.syllabus ? course.syllabus.map((module, moduleIndex) => {
-      const moduleLessons = module.lessons.length
-      let moduleCompletedLessons = 0
-      
-      // Count completed lessons in this module
-      const moduleData = userProgress?.courses?.[courseId]?.modules?.[moduleIndex]
-      if (moduleData?.lessons) {
-        Object.values(moduleData.lessons).forEach((lesson: any) => {
-          if (lesson.status === "completed") {
-            moduleCompletedLessons++
-          }
-        })
-      }
-      
-      return {
-        moduleIndex,
-        title: module.title,
-        totalLessons: moduleLessons,
-        completedLessons: moduleCompletedLessons,
-        progress: moduleLessons > 0 ? Math.round((moduleCompletedLessons / moduleLessons) * 100) : 0,
-        status: moduleLessons === moduleCompletedLessons ? "completed" : "in-progress"
-      }
-    }) : []
-
-    // Get lesson status for each lesson
-    const lessonStatus = {}
-    if (userProgress?.courses?.[courseId]?.modules) {
-      Object.entries(userProgress.courses[courseId].modules).forEach(([moduleIndex, moduleData]: [string, any]) => {
-        if (moduleData.lessons) {
-          Object.entries(moduleData.lessons).forEach(([lessonIndex, lessonData]: [string, any]) => {
-            lessonStatus[`${moduleIndex}-${lessonIndex}`] = {
-              status: lessonData.status,
-              percentageWatched: lessonData.percentageWatched
-            }
-          })
-        }
-      })
-    }
-
+    // Check if the user has an assessment result for this course
+    const assessmentResult = await db.collection("assessmentResults").findOne({
+      userEmail: session.user.email,
+      courseId: courseId
+    })
+    
+    // Check if the user has a certificate for this course
+    const certificate = await db.collection("certificates").findOne({
+      userEmail: session.user.email,
+      courseId: courseId
+    })
+    
     return NextResponse.json({
-      courseProgress: {
-        totalLessons,
-        completedLessons,
-        overallProgress,
-        moduleProgress,
-        lessonStatus,
-        certificateEarned: userProgress?.courses?.[courseId]?.certificateEarned || false,
-        certificateDate: userProgress?.courses?.[courseId]?.certificateDate || null
-      }
+      totalLessons,
+      completedLessons,
+      progressPercentage,
+      assessment: assessmentResult ? {
+        score: assessmentResult.score,
+        passed: assessmentResult.passed,
+        completedAt: assessmentResult.completedAt
+      } : null,
+      certificate: certificate ? {
+        certificateId: certificate.certificateId,
+        issuedDate: certificate.issuedDate
+      } : null
     })
   } catch (error) {
-    console.error("Error fetching attendance:", error)
+    console.error("Error fetching attendance status:", error)
     return NextResponse.json(
-      { error: "Failed to fetch attendance" },
+      { error: "Failed to fetch attendance status" },
       { status: 500 }
     )
   }

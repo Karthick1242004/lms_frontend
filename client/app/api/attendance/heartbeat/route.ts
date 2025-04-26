@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     // Update the user's attendance record
     const result = await db.collection("userProgress").updateOne(
-      { userId: session.user.id },
+      { userEmail: session.user.email },
       {
         $set: {
           [`courses.${courseId}.modules.${moduleIndex}.lessons.${lessonIndex}`]: {

@@ -2,13 +2,12 @@ import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { ObjectId } from "mongodb"
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -26,16 +25,16 @@ export async function GET(request: Request) {
     const userProgressRecords = await db.collection("userProgress").find({}).toArray()
     
     // Get additional user information for the records
-    const userIds = userProgressRecords.map(record => record.userId)
+    const userEmails = userProgressRecords.map(record => record.userEmail)
     const users = await db.collection("users")
-      .find({ _id: { $in: userIds.map(id => new ObjectId(id)) } })
-      .project({ _id: 1, name: 1, email: 1 })
+      .find({ email: { $in: userEmails } })
+      .project({ email: 1, name: 1 })
       .toArray()
     
     // Create a lookup map for users
     const userMap = new Map()
     users.forEach(user => {
-      userMap.set(user._id.toString(), {
+      userMap.set(user.email, {
         name: user.name,
         email: user.email
       })
@@ -46,7 +45,7 @@ export async function GET(request: Request) {
     
     // Process user progress records
     userProgressRecords.forEach(record => {
-      const userId = record.userId
+      const userEmail = record.userEmail
       const userCourses = record.courses || {}
       
       // Filter by courseId if provided
@@ -60,9 +59,9 @@ export async function GET(request: Request) {
           attendanceByUser[courseId] = {}
         }
         
-        if (!attendanceByUser[courseId][userId]) {
-          attendanceByUser[courseId][userId] = {
-            user: userMap.get(userId) || { name: "Unknown", email: "Unknown" },
+        if (!attendanceByUser[courseId][userEmail]) {
+          attendanceByUser[courseId][userEmail] = {
+            user: userMap.get(userEmail) || { name: "Unknown", email: userEmail },
             modules: {}
           }
         }
@@ -72,8 +71,8 @@ export async function GET(request: Request) {
         Object.entries(modules).forEach(([moduleIndex, moduleData]) => {
           const moduleName = moduleData.title || `Module ${moduleIndex}`
           
-          if (!attendanceByUser[courseId][userId].modules[moduleName]) {
-            attendanceByUser[courseId][userId].modules[moduleName] = {
+          if (!attendanceByUser[courseId][userEmail].modules[moduleName]) {
+            attendanceByUser[courseId][userEmail].modules[moduleName] = {
               lessons: {}
             }
           }
@@ -83,7 +82,7 @@ export async function GET(request: Request) {
           Object.entries(lessons).forEach(([lessonIndex, lessonData]) => {
             const lessonName = lessonData.lessonName || `Lesson ${lessonIndex}`
             
-            attendanceByUser[courseId][userId].modules[moduleName].lessons[lessonName] = {
+            attendanceByUser[courseId][userEmail].modules[moduleName].lessons[lessonName] = {
               status: lessonData.status,
               percentageWatched: lessonData.percentageWatched,
               lastUpdated: lessonData.lastUpdated

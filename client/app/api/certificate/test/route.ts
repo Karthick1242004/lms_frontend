@@ -11,14 +11,14 @@ export async function GET(request: Request) {
     
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       )
     }
     
-    const userId = session.user.id
+    const userEmail = session.user.email
     
     // Get courseId from query params if available
     const { searchParams } = new URL(request.url)
@@ -30,14 +30,14 @@ export async function GET(request: Request) {
       
       // Check if the user has passed the assessment
       const assessmentResult = await db.collection("assessmentResults").findOne({
-        userId,
+        userEmail,
         courseId,
         passed: true
       })
       
       // Check if user has earned certificate in userProgress
       const userProgress = await db.collection("userProgress").findOne({
-        userId,
+        userEmail,
         [`courses.${courseId}.certificateEarned`]: true
       })
       
@@ -111,7 +111,7 @@ export async function GET(request: Request) {
         <div class="certificate-content">
           <div class="title">TEST CERTIFICATE</div>
           <div class="description">This is a test certificate for debugging purposes.</div>
-          <div class="description">User ID: ${session.user.id}</div>
+          <div class="description">User Email: ${session.user.email}</div>
           <div class="description">Current Time: ${new Date().toISOString()}</div>
           ${courseId ? `<div class="description">Course ID: ${courseId}</div>` : ''}
         </div>

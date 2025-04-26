@@ -11,7 +11,7 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -25,7 +25,7 @@ export async function GET(
     
     // Check if the user has completed the course
     const userProgress = await db.collection("userProgress").findOne({
-      userId: session.user.id,
+      userEmail: session.user.email,
       [`courses.${courseId}`]: { $exists: true }
     })
     
@@ -115,7 +115,7 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -165,10 +165,10 @@ export async function POST(
     
     // Store the assessment result
     await db.collection("assessmentResults").updateOne(
-      { userId: session.user.id, courseId },
+      { userEmail: session.user.email, courseId },
       { 
         $set: {
-          userId: session.user.id,
+          userEmail: session.user.email,
           courseId,
           score,
           passed,
@@ -182,7 +182,7 @@ export async function POST(
     // Update user progress with certificate if passed
     if (passed) {
       await db.collection("userProgress").updateOne(
-        { userId: session.user.id },
+        { userEmail: session.user.email },
         {
           $set: {
             [`courses.${courseId}.certificateEarned`]: true,

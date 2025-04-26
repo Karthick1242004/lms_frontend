@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     
     // Get user's progress data
     const userProgress = await db.collection("userProgress").findOne(
-      { userId: session.user.id },
+      { userEmail: session.user.email },
       { projection: { courses: 1 } }
     )
 

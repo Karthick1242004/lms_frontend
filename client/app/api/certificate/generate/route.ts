@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     console.log("Certificate generation request received")
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       console.error("Certificate generation: Unauthorized - no user session")
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const userId = session.user.id
+    const userEmail = session.user.email
     const body = await request.json()
     const { userName, courseName, instructorName, courseId, completionDate } = body
     
@@ -37,14 +37,14 @@ export async function POST(request: Request) {
     
     // Check if the user has passed the assessment
     const assessmentResult = await db.collection("assessmentResults").findOne({
-      userId,
+      userEmail,
       courseId,
       passed: true
     })
     
     // Check if user has earned certificate in userProgress
     const userProgress = await db.collection("userProgress").findOne({
-      userId,
+      userEmail,
       [`courses.${courseId}.certificateEarned`]: true
     })
     
@@ -62,16 +62,16 @@ export async function POST(request: Request) {
     
     // Get or create certificate record
     let certificate = await db.collection("certificates").findOne({
-      userId,
+      userEmail,
       courseId
     })
     
     if (!certificate) {
       // Create a new certificate
-      const certificateId = generateCertificateId(userId, courseId)
+      const certificateId = generateCertificateId(userEmail, courseId)
       
       const newCertificate = {
-        userId,
+        userEmail,
         courseId,
         certificateId,
         userName,
@@ -88,128 +88,149 @@ export async function POST(request: Request) {
       console.log("Using existing certificate:", certificate.certificateId)
     }
     
-    // Generate HTML for certificate
+    // Generate certificate HTML
     const certificateHtml = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Course Completion Certificate</title>
+      <title>Certificate of Completion</title>
       <style>
-        body {
-          font-family: 'Georgia', serif;
+        body, html {
           margin: 0;
           padding: 0;
-          width: 11in;
-          height: 8.5in;
-          background-color: white;
-          color: #1e293b;
-        }
-        .certificate {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          box-sizing: border-box;
           width: 100%;
           height: 100%;
-          border: 20px solid #0c4a6e;
-          box-sizing: border-box;
-          padding: 40px;
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
         }
-        .certificate-bg {
+        
+        .certificate-container {
+          width: 1050px;
+          height: 750px;
+          padding: 20px;
+          text-align: center;
+          position: relative;
+          margin: 0 auto;
+          background-color: #ffffff;
+        }
+        
+        .certificate-border {
           position: absolute;
           top: 0;
           left: 0;
-          width: 100%;
-          height: 100%;
-          opacity: 0.05;
-          z-index: 0;
+          right: 0;
+          bottom: 0;
+          border: 20px solid #4A6FFC;
+          border-radius: 5px;
+          pointer-events: none;
+          z-index: -1;
         }
+        
+        .border-pattern {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          right: 20px;
+          bottom: 20px;
+          border: 1px solid #8BB3FF;
+          border-radius: 3px;
+          pointer-events: none;
+          z-index: -1;
+        }
+        
         .certificate-content {
-          position: relative;
-          z-index: 2;
-          text-align: center;
+          padding: 60px 80px;
+          height: 100%;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          height: 100%;
-          width: 100%;
+          justify-content: space-between;
+          box-sizing: border-box;
         }
-        .title {
-          font-size: 36px;
-          font-weight: bold;
-          color: #0c4a6e;
-          margin-bottom: 20px;
-          letter-spacing: 1px;
+        
+        .certificate-title {
+          color: #1a1a1a;
+          font-size: 48px;
+          font-weight: 700;
+          margin-bottom: 10px;
         }
-        .title-underline {
-          width: 250px;
-          height: 3px;
-          background-color: #0c4a6e;
-          margin-bottom: 40px;
+        
+        .certificate-subtitle {
+          color: #4A6FFC;
+          font-size: 24px;
+          margin-bottom: 30px;
         }
-        .recipient {
-          font-size: 28px;
-          font-weight: bold;
-          font-style: italic;
-          color: #0c4a6e;
-          margin: 20px 0;
+        
+        .recipient-name {
+          color: #1a1a1a;
+          font-size: 34px;
+          font-weight: 700;
+          margin: 20px 0 10px;
         }
+        
         .recipient-underline {
-          width: 200px;
+          width: 300px;
           height: 1px;
-          background-color: #94a3b8;
-          margin-bottom: 20px;
+          background-color: #4A6FFC;
+          margin: 0 auto 10px;
         }
-        .course-name {
-          font-size: 32px;
-          font-weight: bold;
-          color: #0c4a6e;
-          margin: 30px 0;
-        }
+        
         .description {
+          color: #1a1a1a;
           font-size: 18px;
+          font-weight: 400;
           margin: 15px 0;
         }
+        
+        .course-name {
+          color: #4A6FFC;
+          font-size: 24px;
+          font-weight: 700;
+          margin: 10px 0 30px;
+          padding: 0 40px;
+        }
+        
         .date-id {
-          font-size: 16px;
+          font-size: 14px;
+          color: #666;
           margin: 20px 0;
         }
+        
         .signatures {
           display: flex;
           justify-content: space-between;
-          width: 100%;
-          margin-top: auto;
-          padding-bottom: 20px;
+          width: 80%;
+          margin: 30px auto 0;
         }
+        
         .signature {
+          width: 45%;
           text-align: center;
         }
+        
         .signature-line {
-          width: 200px;
+          width: 100%;
           height: 1px;
-          background-color: #94a3b8;
+          background-color: #1a1a1a;
           margin-bottom: 10px;
         }
+        
         .footer {
-          position: absolute;
-          bottom: 10px;
-          right: 10px;
-          font-size: 10px;
-          color: #94a3b8;
+          font-size: 12px;
+          color: #888;
+          margin-top: 20px;
         }
       </style>
     </head>
     <body>
-      <div class="certificate">
+      <div class="certificate-container">
+        <div class="certificate-border"></div>
+        <div class="border-pattern"></div>
         <div class="certificate-content">
-          <div class="title">CERTIFICATE OF COMPLETION</div>
-          <div class="title-underline"></div>
+          <div class="certificate-title">Certificate of Completion</div>
+          <div class="certificate-subtitle">This is to certify that</div>
           
-          <div class="description">This certifies that</div>
-          
-          <div class="recipient">${userName}</div>
+          <div class="recipient-name">${userName}</div>
           <div class="recipient-underline"></div>
           
           <div class="description">has successfully completed the course</div>
@@ -247,40 +268,42 @@ export async function POST(request: Request) {
     </html>
     `
     
-    // Generate PDF with Puppeteer
-    try {
-      const browser = await puppeteer.launch({
-        headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      })
-      
-      const page = await browser.newPage()
-      await page.setContent(certificateHtml)
-      
-      // Set PDF options to match US Letter landscape
-      const pdfBuffer = await page.pdf({
-        format: 'Letter', 
-        landscape: true,
-        printBackground: true,
-        margin: { top: '0', right: '0', bottom: '0', left: '0' }
-      })
-      
-      await browser.close()
-      
-      // Return the PDF as a binary stream
-      return new NextResponse(pdfBuffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${courseName.replace(/\s+/g, '_')}_${userName.replace(/\s+/g, '_')}_Certificate.pdf"`
-        }
-      })
-    } catch (puppeteerError) {
-      console.error("Puppeteer error:", puppeteerError)
-      return NextResponse.json(
-        { error: "Error generating PDF", details: puppeteerError.message },
-        { status: 500 }
-      )
-    }
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: "new"
+    })
+    const page = await browser.newPage()
+    
+    await page.setContent(certificateHtml)
+    
+    // Wait for any resources to load
+    await page.waitForNetworkIdle({ timeout: 3000 }).catch(() => {
+      console.log("Network idle timeout reached, continuing...")
+    })
+    
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      landscape: true,
+      printBackground: true,
+      margin: {
+        top: '0',
+        right: '0',
+        bottom: '0',
+        left: '0'
+      }
+    })
+    
+    await browser.close()
+    
+    // Convert to base64 for return
+    const base64Cert = pdfBuffer.toString('base64')
+    
+    return NextResponse.json({
+      certificateId: certificate.certificateId,
+      certificate: base64Cert,
+      message: "Certificate generated successfully"
+    })
   } catch (error) {
     console.error("Error generating certificate:", error)
     return NextResponse.json(

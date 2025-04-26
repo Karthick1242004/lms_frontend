@@ -60,7 +60,8 @@ export async function POST(req: NextRequest) {
       category: category || "uncategorized",
       thumbnail,
       published,
-      instructorId: new ObjectId(session.user.id),
+      instructorEmail: session.user.email,
+      instructorName: session.user.name || "Instructor",
       createdAt: new Date(),
       updatedAt: new Date(),
       lessons: []

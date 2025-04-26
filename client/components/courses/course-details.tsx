@@ -90,17 +90,46 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     enabled: !!courseId && enrolledCourses.includes(courseId)
   })
 
-  // Refetch attendance data when a lesson is completed
+  // Add a new query to fetch user progress data
+  const {
+    data: userProgressData,
+    isLoading: isLoadingUserProgress,
+    refetch: refetchUserProgress
+  } = useQuery({
+    queryKey: ["userProgress", courseId],
+    queryFn: async () => {
+      const response = await fetch("/api/user/progress")
+      if (!response.ok) {
+        throw new Error("Failed to fetch user progress data")
+      }
+      const data = await response.json()
+      return data
+    },
+    enabled: !!courseId && enrolledCourses.includes(courseId)
+  })
+
+  // Refetch progress data when a lesson is completed
   useEffect(() => {
     // Set up an interval to refresh attendance data
     const intervalId = setInterval(() => {
       if (enrolledCourses.includes(courseId)) {
-        refetchAttendance()
+        refetchAttendance().then(() => {
+          console.log("Attendance data refreshed:", attendanceData);
+        });
+        refetchUserProgress();
       }
     }, 60000) // Refresh every minute
+
+    // Initial fetch
+    if (enrolledCourses.includes(courseId)) {
+      refetchAttendance().then(() => {
+        console.log("Initial attendance data:", attendanceData);
+      });
+      refetchUserProgress();
+    }
     
     return () => clearInterval(intervalId)
-  }, [courseId, enrolledCourses, refetchAttendance])
+  }, [courseId, enrolledCourses, refetchAttendance, refetchUserProgress, attendanceData])
 
   if (isLoading) {
     return (
@@ -273,16 +302,26 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     setSelectedLesson(null)
     // Refresh attendance data when closing the video
     if (isEnrolled) {
-      refetchAttendance()
+      refetchAttendance().then(() => {
+        console.log("Video closed - Attendance data:", attendanceData);
+      });
+      refetchUserProgress().then(() => {
+        console.log("Video closed - User progress data:", userProgressData);
+      });
     }
   }
 
   // Get lesson status from attendance data
   const getLessonStatus = (moduleIndex: number, lessonIndex: number) => {
-    if (!attendanceData?.courseProgress?.lessonStatus) return null
+    if (!userProgressData || !userProgressData.courses) return null
     
-    const key = `${moduleIndex}-${lessonIndex}`
-    return attendanceData.courseProgress.lessonStatus[key] || null
+    // Extract lesson status from userProgress data
+    const courseProgress = userProgressData.courses[courseId]
+    if (courseProgress?.modules?.[moduleIndex]?.lessons?.[lessonIndex]) {
+      return courseProgress.modules[moduleIndex].lessons[lessonIndex]
+    }
+    
+    return null
   }
 
   return (
@@ -589,26 +628,41 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Overall Progress</span>
                       <span className="text-sm font-medium">
-                        {isLoadingAttendance ? "Loading..." : `${attendanceData?.courseProgress?.overallProgress || 0}%`}
+                        {isLoadingAttendance ? "Loading..." : `${attendanceData?.progressPercentage || 0}%`}
                       </span>
                     </div>
-                    <Progress value={isLoadingAttendance ? 0 : attendanceData?.courseProgress?.overallProgress || 0} />
+                    <Progress value={isLoadingAttendance ? 0 : attendanceData?.progressPercentage || 0} />
                   </div>
                   <div className="space-y-2">
                     <span className="text-sm font-medium">Modules Progress</span>
-                    {!isLoadingAttendance && attendanceData?.courseProgress?.moduleProgress && (
+                    {!isLoadingAttendance && course?.syllabus && (
                       <div className="space-y-3 mt-2">
-                        {attendanceData.courseProgress.moduleProgress.map((module: any) => (
-                          <div key={module.moduleIndex} className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span>{module.title}</span>
-                              <span>
-                                {module.completedLessons}/{module.totalLessons} lessons
-                              </span>
+                        {course.syllabus.map((module, moduleIndex) => {
+                          // Count completed lessons in this module
+                          let moduleCompletedLessons = 0;
+                          module.lessons.forEach((_, lessonIndex) => {
+                            const status = getLessonStatus(moduleIndex, lessonIndex);
+                            if (status?.status === "completed") {
+                              moduleCompletedLessons++;
+                            }
+                          });
+                          
+                          const moduleProgress = module.lessons.length > 0 
+                            ? Math.round((moduleCompletedLessons / module.lessons.length) * 100) 
+                            : 0;
+                            
+                          return (
+                            <div key={moduleIndex} className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span>{module.title}</span>
+                                <span>
+                                  {moduleCompletedLessons}/{module.lessons.length} lessons
+                                </span>
+                              </div>
+                              <Progress value={moduleProgress} className="h-1" />
                             </div>
-                            <Progress value={module.progress} className="h-1" />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -617,13 +671,13 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                     <p className="text-2xl font-bold">
                       {isLoadingAttendance 
                         ? "Loading..." 
-                        : `${attendanceData?.courseProgress?.completedLessons || 0}/${attendanceData?.courseProgress?.totalLessons || 0}`
+                        : `${attendanceData?.completedLessons || 0}/${attendanceData?.totalLessons || 0}`
                       }
                     </p>
                   </div>
                   
                   {/* Certificate Button */}
-                  {attendanceData?.courseProgress?.certificateEarned && (
+                  {(attendanceData?.certificate || attendanceData?.assessment?.passed) && (
                     <div className="pt-4">
                       <Button
                         className="w-full bg-green-600 hover:bg-green-700"
@@ -639,28 +693,67 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                   <div className="pt-4">
                     <Button 
                       className="w-full"
-                      variant={isLoadingAttendance || (attendanceData?.courseProgress?.overallProgress || 0) < 100 ? "outline" : "default"}
-                      disabled={isLoadingAttendance || (attendanceData?.courseProgress?.overallProgress || 0) < 100}
+                      variant={isLoadingAttendance || (attendanceData?.progressPercentage || 0) < 100 ? "outline" : "default"}
+                      disabled={isLoadingAttendance || (attendanceData?.progressPercentage || 0) < 100}
                       onClick={() => {
                         // Navigate to assessment page
-                        if (!isLoadingAttendance && (attendanceData?.courseProgress?.overallProgress || 0) === 100) {
+                        if (!isLoadingAttendance && (attendanceData?.progressPercentage || 0) === 100) {
                           router.push(`/dashboard/courses/${courseId}/assessment`)
                         }
                       }}
                     >
                       {isLoadingAttendance 
                         ? "Loading..." 
-                        : (attendanceData?.courseProgress?.overallProgress || 0) === 100 
+                        : (attendanceData?.progressPercentage || 0) === 100 
                           ? "Take Assessment" 
-                          : `Complete course to unlock assessment (${attendanceData?.courseProgress?.overallProgress || 0}%)`
+                          : `Complete course to unlock assessment (${attendanceData?.progressPercentage || 0}%)`
                       }
                     </Button>
-                    {!isLoadingAttendance && (attendanceData?.courseProgress?.overallProgress || 0) < 100 && (
+                    {!isLoadingAttendance && (attendanceData?.progressPercentage || 0) < 100 && (
                       <p className="text-xs text-muted-foreground mt-2 text-center">
                         Complete all lessons to unlock the final assessment
                       </p>
                     )}
                   </div>
+                  
+                  {/* Debug info - small and subtle */}
+                  {/* <div className="mt-4 border-t pt-2">
+                    <details className="text-xs text-muted-foreground">
+                      <summary className="cursor-pointer">Debug Info</summary>
+                      <div className="mt-2 space-y-1 text-left">
+                        <p>Progress: {attendanceData?.progressPercentage || 0}%</p>
+                        <p>Assessment: {attendanceData?.assessment ? 
+                          `Score: ${attendanceData.assessment.score}, Passed: ${attendanceData.assessment.passed}` : 
+                          'Not taken'}</p>
+                        <p>Certificate: {attendanceData?.certificate ? 
+                          `ID: ${attendanceData.certificate.certificateId}` : 
+                          'Not generated'}</p>
+                      </div>
+                    </details>
+                  </div> */}
+                  
+                  {/* Debug button - small and subtle */}
+                  {/* <div className="pt-4 flex justify-end">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs opacity-50 hover:opacity-100"
+                      onClick={() => {
+                        refetchAttendance().then(() => {
+                          console.log("Manual refresh - Attendance data:", attendanceData);
+                        });
+                        refetchUserProgress();
+                        toast({
+                          title: "Refreshed",
+                          description: "Progress data refreshed",
+                          variant: "default",
+                          duration: 2000,
+                        });
+                      }}
+                    >
+                      Refresh Data
+                    </Button>
+                  </div> */}
                 </div>
               ) : (
                 <div className="text-center py-4">
@@ -700,15 +793,15 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
       </div>
 
       {/* Certificate Modal */}
-      {showCertificate && userDetails && course && (
+      {showCertificate && userDetails && course && (attendanceData?.certificate || attendanceData?.assessment?.passed) && (
         <CertificateModal
           isOpen={showCertificate}
           onClose={() => setShowCertificate(false)}
           userName={userDetails.name}
           courseName={course.title}
           instructorName={course.instructor}
-          completionDate={attendanceData?.courseProgress?.certificateDate || new Date()}
-          certificateId={generateCertificateId(userDetails.id, courseId)}
+          completionDate={attendanceData?.certificate?.issuedDate || attendanceData?.assessment?.completedAt || new Date()}
+          certificateId={attendanceData?.certificate?.certificateId || generateCertificateId(userDetails.id, courseId)}
           courseId={courseId}
         />
       )}

@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -16,55 +16,32 @@ export async function GET(request: Request) {
     }
 
     console.log("User session info:", {
-      id: session.user.id,
-      name: session.user.name,
-      email: session.user.email
+      email: session.user.email,
+      name: session.user.name
     });
 
     const { db } = await connectToDatabase()
     
-    // Try different ways to query the user
-    let user = null;
+    // Look up user by email
+    const user = await db.collection("users").findOne({ 
+      email: session.user.email 
+    });
     
-    // First try with ObjectId
-    try {
-      user = await db.collection("users").findOne({ 
-        _id: new ObjectId(session.user.id) 
-      });
-    } catch (e) {
-      console.log("ObjectId lookup failed, trying string ID");
-    }
-    
-    // If not found, try with string ID
-    if (!user) {
-      user = await db.collection("users").findOne({ 
-        id: session.user.id 
-      });
-    }
-    
-    // If still not found, try with email
-    if (!user && session.user.email) {
-      user = await db.collection("users").findOne({ 
-        email: session.user.email 
-      });
-    }
-    
-    // If still nothing found, create a basic user object from session
+    // If not found, create a basic user object from session
     if (!user) {
       console.log("User not found in database, using session data");
-      user = {
-        _id: session.user.id,
-        name: session.user.name || "User",
-        email: session.user.email || ""
-      };
+      return NextResponse.json({
+        email: session.user.email,
+        name: session.user.name || "User"
+      });
     }
     
     // Return user info (excluding sensitive data)
     return NextResponse.json({
-      id: user._id.toString ? user._id.toString() : user._id,
+      id: user._id.toString(),
       name: user.name || session.user.name || "User",
-      email: user.email || session.user.email || ""
-    })
+      email: user.email
+    });
   } catch (error) {
     console.error("Error fetching user:", error)
     
