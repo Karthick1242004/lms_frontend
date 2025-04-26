@@ -77,7 +77,7 @@ export default async function AdminEnrollmentsPage() {
   
   // Get all enrollments with populated user and course info
   const enrollments = await db.collection("enrollments").find({}).toArray() as EnrollmentType[];
-  
+  console.log("Enr data",enrollments)
   // Get user and course information separately
   const userIds = enrollments.map(enrollment => enrollment.userId);
   const courseIds = enrollments.map(enrollment => enrollment.courseId);
@@ -108,10 +108,12 @@ export default async function AdminEnrollmentsPage() {
         name: user.name,
         email: user.email
       } : null,
+      
       courseInfo: course ? {
         title: course.title,
         id: course.id
       } : null
+      
     };
   });
   
@@ -148,7 +150,7 @@ export default async function AdminEnrollmentsPage() {
                 <TableBody>
                   {enhancedEnrollments.map((enrollment) => (
                     <TableRow key={enrollment._id.toString()}>
-                      <TableCell className="font-medium">{enrollment.userInfo?.name || 'Unknown'}</TableCell>
+                      <TableCell className="font-medium">{enrollment.userId || 'Unknown'}</TableCell>
                       <TableCell>{enrollment.courseInfo?.title || enrollment.courseName || 'Unknown Course'}</TableCell>
                       <TableCell>
                         {enrollment.progress ? `${enrollment.progress}%` : '0%'}

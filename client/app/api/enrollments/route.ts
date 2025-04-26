@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const { db } = await connectToDatabase()
     
     const enrollments = await db.collection("enrollments")
-      .find({ userId: session.user.id })
+      .find({ userId: session.user.email })
       .toArray()
     
     // Return just the course IDs as an array for easier client-side handling
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     
     // Check if already enrolled
     const existingEnrollment = await db.collection("enrollments").findOne({
-      userId: session.user.id,
+      userId: session.user.email,
       courseId: courseId
     })
     
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     
     // Create enrollment
     const result = await db.collection("enrollments").insertOne({
-      userId: session.user.id,
+      userId: session.user.email,
       courseId: courseId,
       courseName: course.title,
       enrolledAt: new Date()
