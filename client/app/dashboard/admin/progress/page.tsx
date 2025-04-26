@@ -7,7 +7,6 @@ import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { connectToDatabase } from "@/lib/mongodb"
-import { formatDistanceToNow } from "date-fns"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 
@@ -119,6 +118,18 @@ export default async function AdminProgressPage() {
     }
   ]).toArray()
   
+  // Helper function to format dates
+  const formatDate = (dateString: string | Date) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader 
@@ -162,7 +173,7 @@ export default async function AdminProgressPage() {
                       </TableCell>
                       <TableCell>
                         {item.lastActivityDate ? 
-                          formatDistanceToNow(new Date(item.lastActivityDate), { addSuffix: true }) : 
+                          formatDate(item.lastActivityDate) : 
                           'No activity yet'}
                       </TableCell>
                     </TableRow>
@@ -203,13 +214,13 @@ export default async function AdminProgressPage() {
                       <TableCell>{result.assessmentTitle || 'Quiz'}</TableCell>
                       <TableCell>{result.score ? `${result.score}%` : 'N/A'}</TableCell>
                       <TableCell>
-                        <Badge variant={result.passed ? 'success' : 'destructive'}>
+                        <Badge variant={result.passed ? 'default' : 'destructive'}>
                           {result.passed ? 'Passed' : 'Failed'}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         {result.completedAt ? 
-                          formatDistanceToNow(new Date(result.completedAt), { addSuffix: true }) : 
+                          formatDate(result.completedAt) : 
                           'Unknown'}
                       </TableCell>
                     </TableRow>
