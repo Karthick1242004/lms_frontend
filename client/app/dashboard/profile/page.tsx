@@ -95,7 +95,55 @@ export default function ProfilePage() {
       }
       
       const data = await response.json()
-      if (data.courses) {
+      
+      // Get assessment results to update progress
+      const assessmentResponse = await fetch("/api/user/assessments")
+      if (assessmentResponse.ok) {
+        const assessmentData = await assessmentResponse.json()
+        const assessmentResults = assessmentData.results || []
+        
+        // Create a map of progress data
+        const progressData: Record<string, UserProgress> = {}
+        
+        // Initialize with existing course progress
+        if (data.courses) {
+          Object.entries(data.courses).forEach(([courseId, courseProgress]: [string, any]) => {
+            progressData[courseId] = {
+              courseId,
+              progress: courseProgress.progress || 0,
+              completedLessons: courseProgress.completedLessons || 0,
+              totalLessons: courseProgress.totalLessons || 0,
+              lastActivityDate: courseProgress.lastAccessed,
+              certificateEarned: courseProgress.certificateEarned || false,
+              certificateId: courseProgress.certificateId,
+              certificateDate: courseProgress.certificateDate
+            }
+          })
+        }
+        
+        // Update progress with assessment results
+        assessmentResults.forEach((result: AssessmentResult) => {
+          if (progressData[result.courseId]) {
+            // If course exists in progress, update with assessment data
+            if (result.passed && result.score > 0) {
+              progressData[result.courseId].progress = Math.max(progressData[result.courseId].progress, result.score)
+            }
+          } else {
+            // If new course from assessment, add it
+            progressData[result.courseId] = {
+              courseId: result.courseId,
+              progress: result.passed ? result.score : 0,
+              completedLessons: 0,
+              totalLessons: 0,
+              lastActivityDate: result.completedAt,
+              certificateEarned: result.passed,
+              certificateDate: result.passed ? result.completedAt : undefined
+            }
+          }
+        })
+        
+        setUserProgress(progressData)
+      } else if (data.courses) {
         setUserProgress(data.courses)
       }
     } catch (error) {
@@ -147,7 +195,7 @@ export default function ProfilePage() {
   }
 
   // Calculate user stats
-  const completedCourses = Object.values(userProgress).filter(p => p.progress === 100).length
+  const completedCourses = Object.values(userProgress).filter(p => p.progress === 100 || p.progress >= 97).length
   const certificatesEarned = Object.values(userProgress).filter(p => p.certificateEarned).length
   const averageProgress = Object.values(userProgress).length > 0 
     ? Math.round(Object.values(userProgress).reduce((sum, p) => sum + p.progress, 0) / Object.values(userProgress).length) 
@@ -246,6 +294,9 @@ export default function ProfilePage() {
                   ) : (
                     courses.map(course => {
                       const progress = userProgress[course.id]?.progress || 0;
+                      const badgeText = progress === 100 ? "Completed" : 
+                                     progress >= 97 ? "Passed Assessment" : "In Progress";
+                      const badgeVariant = progress >= 97 ? "default" : "secondary";
                       return (
                         <Card key={course.id} className="overflow-hidden">
                           <CardHeader className="pb-2">
@@ -261,8 +312,8 @@ export default function ProfilePage() {
                               <Progress value={progress} className="h-2" />
                               
                               <div className="flex justify-between items-center text-sm">
-                                <Badge variant={progress === 100 ? "default" : "secondary"}>
-                                  {progress === 100 ? "Completed" : "In Progress"}
+                                <Badge variant={badgeVariant}>
+                                  {badgeText}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
                                   {userProgress[course.id]?.completedLessons || 0}/{userProgress[course.id]?.totalLessons || 0} lessons

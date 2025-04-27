@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, Settings, Users, PlusCircle, Library, UserPlus, BarChart, Database } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, Settings, Users, PlusCircle, Library, UserPlus, BarChart, Database, BrainCircuit } from "lucide-react"
 import { useSession } from "next-auth/react"
 import {
   Sidebar,
@@ -83,6 +83,15 @@ export default function DashboardSidebar() {
               <Link href="/dashboard/instructors">
                 <Users className="h-4 w-4" />
                 <span>Instructors</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive("/dashboard/ai-assistant")}>
+              <Link href="/dashboard/ai-assistant">
+                <BrainCircuit className="h-4 w-4" />
+                <span>Ask AI</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
