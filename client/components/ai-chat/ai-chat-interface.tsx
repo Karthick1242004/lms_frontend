@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
-import { Bot, Send, User, AlertCircle, Info } from "lucide-react"
+import { Bot, Send, User, AlertCircle, Info, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/use-toast"
 interface Message {
   role: "user" | "model";
   content: string;
+  id?: string;
 }
 
 interface ChatStats {
@@ -24,7 +25,12 @@ interface ChatStats {
   lifetimeRemaining: number;
 }
 
-export default function AIChatInterface() {
+interface AIChatInterfaceProps {
+  chatId: string;
+  onMessageSent?: () => void;
+}
+
+export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfaceProps) {
   const { data: session } = useSession()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -36,12 +42,28 @@ export default function AIChatInterface() {
     hourlyLimit: 0,
     lifetimeRemaining: 0
   })
+  const [isInitialized, setIsInitialized] = useState(false)
   
   const scrollRef = useRef<HTMLDivElement>(null)
   
   useEffect(() => {
-    fetchChatHistory()
-  }, [session])
+    if (chatId && !isInitialized) {
+      fetchChatHistory()
+      setIsInitialized(true)
+    }
+  }, [chatId, session, isInitialized])
+  
+  // Handle chat stats updates separately from chat history
+  useEffect(() => {
+    // Periodically update the chat stats without reloading the entire chat
+    const updateInterval = setInterval(() => {
+      if (chatId && isInitialized) {
+        updateChatStats()
+      }
+    }, 60000) // Update every minute
+    
+    return () => clearInterval(updateInterval)
+  }, [chatId, isInitialized])
   
   useEffect(() => {
     // Scroll to bottom when new messages are added
@@ -53,28 +75,40 @@ export default function AIChatInterface() {
   const fetchChatHistory = async () => {
     try {
       setInitialLoading(true)
-      const response = await fetch('/api/ai/chat')
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch chat history')
+      // First fetch the usage stats
+      const statsResponse = await fetch('/api/ai/chat')
+      
+      if (!statsResponse.ok) {
+        throw new Error('Failed to fetch usage stats')
       }
       
-      const data = await response.json()
-      
-      // Transform the chat history format
-      const formattedMessages = data.chatHistory
-        .filter((msg: any) => msg.parts && msg.parts.length > 0)
-        .map((msg: any) => ({
-          role: msg.role,
-          content: msg.parts[0].text
-        }))
-      
-      setMessages(formattedMessages)
+      const statsData = await statsResponse.json()
       setChatStats({
-        remainingRequests: data.remainingRequests,
-        hourlyLimit: data.hourlyLimit,
-        lifetimeRemaining: data.lifetimeRemaining
+        remainingRequests: statsData.remainingRequests || 0,
+        hourlyLimit: statsData.hourlyLimit || 0,
+        lifetimeRemaining: statsData.lifetimeRemaining || 0
       })
+      
+      // Then fetch the specific chat history
+      const chatResponse = await fetch(`/api/ai/chat-history/${chatId}`)
+      
+      if (!chatResponse.ok) {
+        throw new Error('Failed to fetch chat messages')
+      }
+      
+      const chatData = await chatResponse.json()
+      const chatHistory = chatData.chatHistory
+      
+      // Transform messages from the chat history
+      if (chatHistory && chatHistory.messages) {
+        const formattedMessages = chatHistory.messages.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content
+        }))
+        
+        setMessages(formattedMessages)
+      }
     } catch (error) {
       console.error('Error fetching chat history:', error)
       toast({
@@ -87,33 +121,80 @@ export default function AIChatInterface() {
     }
   }
   
+  const updateChatStats = async () => {
+    try {
+      const statsResponse = await fetch('/api/ai/chat')
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setChatStats({
+          remainingRequests: statsData.remainingRequests || 0,
+          hourlyLimit: statsData.hourlyLimit || 0,
+          lifetimeRemaining: statsData.lifetimeRemaining || 0
+        })
+      }
+    } catch (error) {
+      console.error('Error updating chat stats:', error)
+    }
+  }
+  
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
+    if (!input.trim() || isLoading || !chatId) return
     
     const userMessage = input.trim()
     setInput("")
     
-    // Optimistically add user message
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }])
+    // Create message objects with unique IDs
+    const userMessageObj: Message = { 
+      role: "user", 
+      content: userMessage,
+      id: `user-${Date.now()}`
+    }
+    
+    // Optimistically add user message to UI
+    setMessages((prev) => [...prev, userMessageObj])
     
     try {
       setIsLoading(true)
       
-      const response = await fetch('/api/ai/chat', {
+      // First update the chat history with just the user message
+      await fetch(`/api/ai/chat-history/${chatId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
+      })
+      
+      // Then send message to AI
+      const aiResponse = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })
       })
       
-      if (!response.ok) {
-        const errorData = await response.json()
+      if (!aiResponse.ok) {
+        const errorData = await aiResponse.json()
         throw new Error(errorData.error || 'Failed to get AI response')
       }
       
-      const data = await response.json()
+      const data = await aiResponse.json()
       
-      // Add AI response
-      setMessages((prev) => [...prev, { role: "model", content: data.response }])
+      // Create AI message object with unique ID
+      const aiMessageObj: Message = { 
+        role: "model", 
+        content: data.response,
+        id: `ai-${Date.now()}`
+      }
+      
+      // Add AI response to UI
+      setMessages((prev) => [...prev, aiMessageObj])
+      
+      // Add only the AI response to chat history
+      await fetch(`/api/ai/chat-history/${chatId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          aiResponse: data.response 
+        })
+      })
       
       // Update usage stats
       setChatStats({
@@ -121,6 +202,11 @@ export default function AIChatInterface() {
         hourlyLimit: data.hourlyLimit,
         lifetimeRemaining: data.lifetimeRemaining
       })
+      
+      // Notify parent component that a message was sent (for updating the chat list)
+      if (onMessageSent) {
+        setTimeout(() => onMessageSent(), 0)
+      }
       
     } catch (error: any) {
       console.error('Error sending message:', error)
@@ -132,8 +218,9 @@ export default function AIChatInterface() {
       
       // Add error message from AI
       setMessages((prev) => [...prev, { 
-        role: "model", 
-        content: "Sorry, I encountered an error. Please try again later." 
+        role: "model" as const, 
+        content: "Sorry, I encountered an error. Please try again later.",
+        id: `error-${Date.now()}`
       }])
     } finally {
       setIsLoading(false)
@@ -198,7 +285,7 @@ export default function AIChatInterface() {
   }
   
   return (
-    <Card className="flex flex-col h-[95%]">
+    <Card className="flex flex-col h-full">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2">
           <Bot className="h-5 w-5" /> AI Assistant
@@ -228,7 +315,7 @@ export default function AIChatInterface() {
       </CardHeader>
       
       {chatStats.remainingRequests === 0 && (
-        <Alert variant="destructive" className="mx-4 mb-2 w-[96.5%] mt-2">
+        <Alert variant="destructive" className="mx-4 mb-2">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Rate limit reached</AlertTitle>
           <AlertDescription>
@@ -260,7 +347,7 @@ export default function AIChatInterface() {
             <div className="space-y-4 pb-4">
               {messages.map((message, index) => (
                 <div
-                  key={index}
+                  key={message.id || index}
                   className={`flex ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
@@ -326,7 +413,11 @@ export default function AIChatInterface() {
             size="icon"
             className="shrink-0"
           >
-            <Send className="h-4 w-4" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </CardFooter>

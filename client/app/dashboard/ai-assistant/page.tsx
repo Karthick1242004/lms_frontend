@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import DashboardHeader from "@/components/dashboard/page-header"
 import AIChatInterface from "@/components/ai-chat/ai-chat-interface"
-import { Bot, Sparkles, Zap, Trash2, HelpCircle, Info, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Bot, Sparkles, Zap, Trash2, HelpCircle, Info, ChevronLeft, ChevronRight, X, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -19,13 +19,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
-// Define interfaces for the chat history
+// Define interface for chat history
 interface ChatSummary {
   id: string;
   title: string;
@@ -38,6 +36,7 @@ export default function AIAssistantPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
+  const [loadingAction, setLoadingAction] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatSummary[]>([])
   const [activeChat, setActiveChat] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -48,40 +47,38 @@ export default function AIAssistantPage() {
     if (status === "unauthenticated") {
       router.push("/")
     } else if (status === "authenticated") {
-      setLoading(false)
-      // Load chat history
       loadChatHistory()
     }
   }, [status, router])
 
-  // Load chat history from API/database
+  // Load chat history from database
   const loadChatHistory = async () => {
-    // This would be replaced with a real API call
-    const mockChatHistory: ChatSummary[] = [
-      {
-        id: "chat1",
-        title: "HTML/CSS Calculator Help",
-        lastMessage: "I need help with HTML & CSS code for a calculator",
-        timestamp: "2023-06-12T14:30:00Z"
-      },
-      {
-        id: "chat2",
-        title: "React State Management",
-        lastMessage: "How do I manage state in a complex React app?",
-        timestamp: "2023-06-10T09:15:00Z"
-      },
-      {
-        id: "chat3",
-        title: "Data Science Fundamentals",
-        lastMessage: "Can you explain correlation vs causation?",
-        timestamp: "2023-06-08T16:45:00Z"
+    try {
+      setLoading(true)
+      const response = await fetch('/api/ai/chat-history')
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch chat history')
       }
-    ]
-    
-    setChatHistory(mockChatHistory)
-    // Set first chat as active by default if there's at least one chat
-    if (mockChatHistory.length > 0) {
-      setActiveChat(mockChatHistory[0].id)
+      
+      const data = await response.json()
+      const histories = data.chatHistories || []
+      
+      setChatHistory(histories)
+      
+      // Set first chat as active by default if there's at least one chat
+      if (histories.length > 0 && !activeChat) {
+        setActiveChat(histories[0].id)
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load chat history",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -91,8 +88,19 @@ export default function AIAssistantPage() {
   }
 
   const confirmDeleteChat = async () => {
-    if (chatToDelete) {
-      // This would be replaced with a real API call
+    if (!chatToDelete) return
+    
+    try {
+      setLoadingAction(true)
+      const response = await fetch(`/api/ai/chat-history?id=${chatToDelete}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete chat')
+      }
+      
+      // Remove from local state
       setChatHistory(prev => prev.filter(chat => chat.id !== chatToDelete))
       
       // If the deleted chat was active, select the first available chat or null
@@ -105,35 +113,59 @@ export default function AIAssistantPage() {
         title: "Chat deleted",
         description: "The conversation has been removed"
       })
+    } catch (error) {
+      console.error('Error deleting chat:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete chat",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingAction(false)
+      setShowDeleteDialog(false)
+      setChatToDelete(null)
     }
-    
-    setShowDeleteDialog(false)
-    setChatToDelete(null)
   }
 
-  const createNewChat = () => {
-    // Generate a unique ID for the new chat
-    const newChatId = `new-chat-${Date.now()}`
-    
-    // Create new chat object
-    const newChat: ChatSummary = {
-      id: newChatId,
-      title: "New Conversation",
-      lastMessage: "Start a new conversation with the AI assistant",
-      timestamp: new Date().toISOString()
+  const createNewChat = async () => {
+    try {
+      setLoadingAction(true)
+      const response = await fetch('/api/ai/chat-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: "New Conversation" 
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to create new chat')
+      }
+      
+      const data = await response.json()
+      const newChat = data.chatHistory
+      
+      // Add to chat history and set as active chat
+      setChatHistory(prev => [newChat, ...prev])
+      setActiveChat(newChat.id)
+      
+      // Make sure history sidebar is open
+      setIsHistoryCollapsed(false)
+      
+      toast({
+        title: "New conversation started",
+        description: "You can now start chatting with the AI assistant"
+      })
+    } catch (error) {
+      console.error('Error creating new chat:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create new chat",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingAction(false)
     }
-    
-    // Add to chat history and set as active chat
-    setChatHistory(prev => [newChat, ...prev])
-    setActiveChat(newChatId)
-    
-    // Make sure history sidebar is open
-    setIsHistoryCollapsed(false)
-    
-    toast({
-      title: "New conversation started",
-      description: "You can now start chatting with the AI assistant"
-    })
   }
 
   const formatDate = (dateString: string) => {
@@ -149,7 +181,7 @@ export default function AIAssistantPage() {
     setIsHistoryCollapsed(!isHistoryCollapsed)
   }
 
-  if (loading) {
+  if (loading && status !== "loading") {
     return (
       <div className="flex flex-col h-full">
         <DashboardHeader 
@@ -159,7 +191,10 @@ export default function AIAssistantPage() {
         <Separator />
         <div className="flex-1 overflow-auto p-6">
           <div className="flex justify-center items-center h-full">
-            <p>Loading...</p>
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p>Loading chat history...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -178,8 +213,14 @@ export default function AIAssistantPage() {
             size="sm" 
             onClick={createNewChat} 
             className="hidden md:flex items-center gap-1"
+            disabled={loadingAction}
           >
-            <Zap className="h-4 w-4" /> New Chat
+            {loadingAction ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <Zap className="h-4 w-4 mr-1" />
+            )}
+            New Chat
           </Button>
           
           <TooltipProvider>
@@ -265,8 +306,13 @@ export default function AIAssistantPage() {
                     size="icon" 
                     onClick={createNewChat}
                     className="mb-4"
+                    disabled={loadingAction}
                   >
-                    <Zap className="h-5 w-5" />
+                    {loadingAction ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Zap className="h-5 w-5" />
+                    )}
                   </Button>
                   {chatHistory.slice(0, 5).map((chat) => (
                     <Button
@@ -287,8 +333,18 @@ export default function AIAssistantPage() {
                 <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
                   <CardTitle className="text-base md:text-lg">Chat History</CardTitle>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={createNewChat}>
-                      <Zap className="h-4 w-4 mr-1" /> New Chat
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={createNewChat}
+                      disabled={loadingAction}
+                    >
+                      {loadingAction ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Zap className="h-4 w-4 mr-1" />
+                      )}
+                      New Chat
                     </Button>
                     <Button variant="ghost" size="icon" onClick={toggleHistorySidebar} className="h-8 w-8">
                       <ChevronLeft className="h-4 w-4" />
@@ -328,6 +384,7 @@ export default function AIAssistantPage() {
                                 e.stopPropagation();
                                 handleDeleteChat(chat.id);
                               }}
+                              disabled={loadingAction}
                             >
                               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                             </Button>
@@ -345,15 +402,39 @@ export default function AIAssistantPage() {
             "flex-1 transition-all duration-300 ease-in-out",
             isHistoryCollapsed ? "w-[calc(100%-40px)]" : "lg:w-3/4"
           )}>
-            <AIChatInterface />
+            {activeChat ? (
+              <AIChatInterface chatId={activeChat} key={activeChat} onMessageSent={loadChatHistory} />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center max-w-md">
+                  <Bot className="h-12 w-12 text-primary/20 mx-auto mb-4" />
+                  <h3 className="text-xl font-medium mb-2">No active conversation</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start a new chat or select an existing one from the history
+                  </p>
+                  <Button onClick={createNewChat} disabled={loadingAction}>
+                    {loadingAction ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Zap className="h-4 w-4 mr-2" />
+                    )}
+                    Start New Chat
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
       
       {/* Mobile action button for new chat */}
       <div className="md:hidden fixed bottom-20 right-6">
-        <Button size="icon" onClick={createNewChat} className="h-12 w-12 rounded-full shadow-md">
-          <Zap className="h-5 w-5" />
+        <Button size="icon" onClick={createNewChat} className="h-12 w-12 rounded-full shadow-md" disabled={loadingAction}>
+          {loadingAction ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Zap className="h-5 w-5" />
+          )}
         </Button>
       </div>
       
@@ -366,11 +447,19 @@ export default function AIAssistantPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} disabled={loadingAction}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteChat}>
-              Delete
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteChat} 
+              disabled={loadingAction}
+            >
+              {loadingAction ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                "Delete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
