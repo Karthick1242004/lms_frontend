@@ -34,6 +34,20 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Certificate variables */
+    --certificate-border: #0c4a6e;
+    --certificate-text: #1e293b;
+    --certificate-primary: #4A6FFC;
+    --certificate-secondary: #8BB3FF;
+    --certificate-background: #ffffff;
+    --certificate-dark-text: #1a1a1a;
+    --certificate-muted: #666;
+    --certificate-light-muted: #888;
+
+    /* Status colors */
+    --status-success: #22c55e;
+    --status-error: #ef4444;
   }
 
   .dark {

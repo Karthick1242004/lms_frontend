@@ -27,7 +27,7 @@ interface ChatStats {
 
 interface AIChatInterfaceProps {
   chatId: string;
-  onMessageSent?: () => void;
+  onMessageSent?: (title: string, lastMessage: string) => void;
 }
 
 export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfaceProps) {
@@ -205,7 +205,15 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
       
       // Notify parent component that a message was sent (for updating the chat list)
       if (onMessageSent) {
-        setTimeout(() => onMessageSent(), 0)
+        // Get the first few words of the first message as title if it's a new chat
+        const chatTitle = messages.length <= 2 ? 
+          messages[0].content.split(' ').slice(0, 5).join(' ') + '...' :
+          undefined;
+        
+        onMessageSent(
+          chatTitle || 'Chat',
+          aiMessageObj.content.split(' ').slice(0, 10).join(' ') + '...'
+        );
       }
       
     } catch (error: any) {

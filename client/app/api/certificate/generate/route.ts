@@ -112,7 +112,7 @@ export async function POST(request: Request) {
           text-align: center;
           position: relative;
           margin: 0 auto;
-          background-color: #ffffff;
+          background-color: var(--certificate-background);
         }
         
         .certificate-border {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
           left: 0;
           right: 0;
           bottom: 0;
-          border: 20px solid #4A6FFC;
+          border: 20px solid var(--certificate-primary);
           border-radius: 5px;
           pointer-events: none;
           z-index: -1;
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
           left: 20px;
           right: 20px;
           bottom: 20px;
-          border: 1px solid #8BB3FF;
+          border: 1px solid var(--certificate-secondary);
           border-radius: 3px;
           pointer-events: none;
           z-index: -1;
@@ -149,20 +149,20 @@ export async function POST(request: Request) {
         }
         
         .certificate-title {
-          color: #1a1a1a;
+          color: var(--certificate-dark-text);
           font-size: 48px;
           font-weight: 700;
           margin-bottom: 10px;
         }
         
         .certificate-subtitle {
-          color: #4A6FFC;
+          color: var(--certificate-primary);
           font-size: 24px;
           margin-bottom: 30px;
         }
         
         .recipient-name {
-          color: #1a1a1a;
+          color: var(--certificate-dark-text);
           font-size: 34px;
           font-weight: 700;
           margin: 20px 0 10px;
@@ -171,19 +171,19 @@ export async function POST(request: Request) {
         .recipient-underline {
           width: 300px;
           height: 1px;
-          background-color: #4A6FFC;
+          background-color: var(--certificate-primary);
           margin: 0 auto 10px;
         }
         
         .description {
-          color: #1a1a1a;
+          color: var(--certificate-dark-text);
           font-size: 18px;
           font-weight: 400;
           margin: 15px 0;
         }
         
         .course-name {
-          color: #4A6FFC;
+          color: var(--certificate-primary);
           font-size: 24px;
           font-weight: 700;
           margin: 10px 0 30px;
@@ -192,7 +192,7 @@ export async function POST(request: Request) {
         
         .date-id {
           font-size: 14px;
-          color: #666;
+          color: var(--certificate-muted);
           margin: 20px 0;
         }
         
@@ -211,13 +211,13 @@ export async function POST(request: Request) {
         .signature-line {
           width: 100%;
           height: 1px;
-          background-color: #1a1a1a;
+          background-color: var(--certificate-dark-text);
           margin-bottom: 10px;
         }
         
         .footer {
           font-size: 12px;
-          color: #888;
+          color: var(--certificate-light-muted);
           margin-top: 20px;
         }
       </style>

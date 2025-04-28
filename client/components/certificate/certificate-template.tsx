@@ -19,10 +19,10 @@ const CertificateTemplate = React.forwardRef<HTMLDivElement, CertificateTemplate
         className="relative w-[11in] h-[8.5in] bg-white"
         style={{ 
           fontFamily: 'Georgia, serif',
-          border: '20px solid #0c4a6e',
+          border: '20px solid var(--certificate-border)',
           boxSizing: 'border-box',
           padding: '40px',
-          color: '#1e293b'
+          color: 'var(--certificate-text)'
         }}
       >
         {/* Background Pattern */}

@@ -16,6 +16,7 @@ import { FcGoogle } from "react-icons/fc"
 import Image from "next/image"
 import { useMutation } from "@tanstack/react-query"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
+import bg from '@/public/5707839.jpg'
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -193,7 +194,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 relative bg-purple-900">
         <div className="absolute inset-0">
           <Image
-            src="https://img.freepik.com/free-vector/hand-drawn-flat-design-mountain-landscape_23-2149158786.jpg?t=st=1742409926~exp=1742413526~hmac=a9f28168f554e90ee84ae0f093b44ffb6b0e81722452557bf84328ff556dcb21&w=2000" // Add this image to your public folder
+            src={bg}
             alt="Purple mountain landscape"
             className="object-cover w-full h-full"
             width={10}

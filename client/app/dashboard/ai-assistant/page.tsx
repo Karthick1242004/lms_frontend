@@ -29,6 +29,7 @@ interface ChatSummary {
   title: string;
   lastMessage: string;
   timestamp: string;
+  messages?: { role: string; content: string }[];
 }
 
 export default function AIAssistantPage() {
@@ -181,6 +182,21 @@ export default function AIAssistantPage() {
     setIsHistoryCollapsed(!isHistoryCollapsed)
   }
 
+  // Add this new function to update a single chat in history
+  const updateChatInHistory = (chatId: string, title: string, lastMessage: string) => {
+    setChatHistory(prev => prev.map(chat => {
+      if (chat.id === chatId) {
+        return {
+          ...chat,
+          title: (chat.messages?.length || 0) <= 2 ? title : chat.title,
+          lastMessage,
+          timestamp: new Date().toISOString()
+        }
+      }
+      return chat
+    }))
+  }
+
   if (loading && status !== "loading") {
     return (
       <div className="flex flex-col h-full">
@@ -208,7 +224,7 @@ export default function AIAssistantPage() {
         text="Ask questions and get help from our AI assistant"
       >
         <div className="flex items-center gap-2">
-          <Button 
+          {/* <Button 
             variant="outline" 
             size="sm" 
             onClick={createNewChat} 
@@ -221,16 +237,16 @@ export default function AIAssistantPage() {
               <Zap className="h-4 w-4 mr-1" />
             )}
             New Chat
-          </Button>
+          </Button> */}
           
-          <TooltipProvider>
+          <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="h-8 w-8">
                   <HelpCircle className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-sm p-4" sideOffset={5}>
+              <TooltipContent align="end" className="max-w-sm p-4">
                 <div className="space-y-2">
                   <h3 className="font-medium flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-yellow-500" /> AI Features
@@ -254,14 +270,14 @@ export default function AIAssistantPage() {
             </Tooltip>
           </TooltipProvider>
           
-          <TooltipProvider>
+          <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="h-8 w-8">
                   <Info className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-sm p-4" sideOffset={5}>
+              <TooltipContent align="end" className="max-w-sm p-4">
                 <div className="space-y-2">
                   <h3 className="font-medium flex items-center gap-2">
                     <Bot className="h-4 w-4" /> Usage Policy
@@ -319,7 +335,7 @@ export default function AIAssistantPage() {
                       key={chat.id}
                       variant={activeChat === chat.id ? "secondary" : "ghost"}
                       size="icon"
-                      className="mb-2"
+                      className="mb-2 w-[80%]"
                       onClick={() => setActiveChat(chat.id)}
                       title={chat.title}
                     >
@@ -379,14 +395,14 @@ export default function AIAssistantPage() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 h-6 w-6"
+                              className="absolute right-1 top-7 opacity-0 group-hover:opacity-100 h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteChat(chat.id);
                               }}
                               disabled={loadingAction}
                             >
-                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Trash2 className="h-3.5  text-red-500 w-3.5 text-muted-foreground" />
                             </Button>
                           </div>
                         ))
@@ -403,7 +419,13 @@ export default function AIAssistantPage() {
             isHistoryCollapsed ? "w-[calc(100%-40px)]" : "lg:w-3/4"
           )}>
             {activeChat ? (
-              <AIChatInterface chatId={activeChat} key={activeChat} onMessageSent={loadChatHistory} />
+              <AIChatInterface 
+                chatId={activeChat} 
+                key={activeChat} 
+                onMessageSent={(title: string, lastMessage: string) => {
+                  updateChatInHistory(activeChat, title, lastMessage)
+                }} 
+              />
             ) : (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center max-w-md">

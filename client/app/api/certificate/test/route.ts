@@ -70,12 +70,12 @@ export async function GET(request: Request) {
           width: 11in;
           height: 8.5in;
           background-color: white;
-          color: #1e293b;
+          color: var(--certificate-text);
         }
         .certificate {
           width: 100%;
           height: 100%;
-          border: 20px solid #0c4a6e;
+          border: 20px solid var(--certificate-border);
           box-sizing: border-box;
           padding: 40px;
           position: relative;
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         .title {
           font-size: 36px;
           font-weight: bold;
-          color: #0c4a6e;
+          color: var(--certificate-border);
           margin-bottom: 20px;
           letter-spacing: 1px;
         }

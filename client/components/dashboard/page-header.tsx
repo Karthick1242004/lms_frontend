@@ -25,14 +25,14 @@ export default function DashboardHeader({ heading, text, children }: PageHeaderP
       </div>
       <div className="flex items-center gap-2">
         {/* Add Course button only visible to instructors */}
-        {isInstructor && (
+        {/* {isInstructor && (
           <Button asChild variant="outline">
             <Link href="/dashboard/courses/create">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Course
             </Link>
           </Button>
-        )}
+        )} */}
         {children}
       </div>
     </div>

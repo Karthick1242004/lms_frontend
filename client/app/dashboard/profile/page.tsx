@@ -368,7 +368,7 @@ export default function ProfilePage() {
                             <ColoredProgress 
                               value={result.score} 
                               className="h-2" 
-                              color={result.passed ? "#22c55e" : "#ef4444"}
+                              color={result.passed ? "var(--status-success)" : "var(--status-error)"}
                             />
                             <div className="text-xs text-muted-foreground text-right">
                               Completed: {formatDate(result.completedAt)}
