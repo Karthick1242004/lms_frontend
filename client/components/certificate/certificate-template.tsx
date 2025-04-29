@@ -1,80 +1,84 @@
 "use client"
 
 import React from 'react'
-import { formatDate } from '@/lib/utils'
+import { format } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 interface CertificateTemplateProps {
   userName: string
   courseName: string
   instructorName: string
-  completionDate: Date
+  completionDate?: Date
   certificateId: string
+  className?: string
 }
 
-const CertificateTemplate = React.forwardRef<HTMLDivElement, CertificateTemplateProps>(
-  ({ userName, courseName, instructorName, completionDate, certificateId }, ref) => {
+const CertificateTemplate = React.forwardRef<
+  HTMLDivElement,
+  CertificateTemplateProps
+>(
+  (
+    {
+      userName,
+      courseName,
+      instructorName,
+      completionDate,
+      certificateId,
+      className,
+    },
+    ref
+  ) => {
     return (
       <div 
         ref={ref}
-        className="relative w-[11in] h-[8.5in] bg-white"
-        style={{ 
-          fontFamily: 'Georgia, serif',
-          border: '20px solid var(--certificate-border)',
-          boxSizing: 'border-box',
-          padding: '40px',
-          color: 'var(--certificate-text)'
+        className={cn(
+          "relative w-[1056px] h-[816px] bg-white p-10 font-serif", 
+          className
+        )}
+        style={{
+          // backgroundImage: 'url(/images/certificate-bg.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
-        {/* Background Pattern */}
-        <div 
-          className="absolute inset-0 z-0 opacity-5" 
-          style={{ backgroundImage: 'url(/images/certificate-bg.png)' }} 
-        />
+        {/* Certificate Border */}
+        <div className="absolute inset-5 border-8 border-amber-100 rounded-lg"></div>
         
         {/* Certificate Content */}
-        <div className="relative z-10 flex flex-col items-center text-center h-full">
-          <div className="mb-6">
-            <h1 className="text-4xl font-bold tracking-wide text-sky-900 mb-2">CERTIFICATE OF COMPLETION</h1>
-            <div className="w-64 h-1 bg-sky-800 mx-auto"></div>
+        <div className="flex flex-col items-center justify-between h-full py-12 px-16 relative z-10">
+          <div className="text-center">
+            <h1 className="text-5xl font-bold text-amber-800 mb-3">Certificate of Completion</h1>
+            <div className="w-96 h-1 bg-amber-800 mx-auto mb-8"></div>
+            <p className="text-xl text-gray-600 italic mb-6">This is to certify that</p>
+            <h2 className="text-4xl font-bold text-amber-900 mb-4 font-script">{userName}</h2>
+            <p className="text-xl text-gray-600 italic mb-6">has successfully completed the course</p>
+            <h3 className="text-3xl font-bold text-amber-900 mb-10 px-10">{courseName}</h3>
           </div>
           
-          <div className="mt-6 mb-2">
-            <p className="text-xl">This certifies that</p>
-          </div>
-          
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold text-sky-800 italic">{userName}</h2>
-            <div className="w-48 h-0.5 bg-slate-400 mx-auto mt-1"></div>
-          </div>
-          
-          <div className="mb-8">
-            <p className="text-xl">has successfully completed the course</p>
-          </div>
-          
-          <div className="mb-12">
-            <h3 className="text-4xl font-bold text-sky-900">{courseName}</h3>
-          </div>
-          
-          <div className="mb-6 text-lg">
-            <p>Awarded on {formatDate(completionDate)}</p>
-            <p>Certificate ID: {certificateId}</p>
-          </div>
-          
-          <div className="mt-auto flex w-full justify-between items-end">
+          <div className="w-full flex justify-between items-end mt-8">
             <div className="text-center">
-              <div className="w-48 h-0.5 bg-slate-400 mb-2"></div>
-              <p className="font-semibold text-lg">Platform Signature</p>
+              <div className="w-64 h-px bg-gray-400 mb-2"></div>
+              <p className="text-lg text-gray-700">{instructorName}</p>
+              <p className="text-sm text-gray-600">Instructor</p>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 mb-4">
+                {/* <img 
+                  src="/images/badge.png" 
+                  alt="Certificate Badge" 
+                  className="w-full h-full object-contain"
+                /> */}
+              </div>
             </div>
             
             <div className="text-center">
-              <div className="w-48 h-0.5 bg-slate-400 mb-2"></div>
-              <p className="font-semibold text-lg">{instructorName}</p>
-              <p className="text-sm">Instructor</p>
+              <div className="w-64 h-px bg-gray-400 mb-2"></div>
+              <p className="text-lg text-gray-700">
+                {completionDate ? new Date(completionDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Date of Completion'}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">Certificate ID: {certificateId}</p>
             </div>
-          </div>
-          
-          <div className="absolute bottom-2 right-2 text-xs text-slate-500">
-            Verified at {window.location.origin}/verify/{certificateId}
           </div>
         </div>
       </div>

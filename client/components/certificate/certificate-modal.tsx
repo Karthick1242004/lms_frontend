@@ -4,9 +4,11 @@ import React, { useRef, useState } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, Download, FileDown } from 'lucide-react'
 import CertificateTemplate from './certificate-template'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 interface CertificateModalProps {
   isOpen: boolean
@@ -32,8 +34,84 @@ export default function CertificateModal({
   const { toast } = useToast()
   const certificateRef = useRef<HTMLDivElement>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isGeneratingClientPDF, setIsGeneratingClientPDF] = useState(false)
   const [showDebugDownload, setShowDebugDownload] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Function to generate PDF on the client side
+  const handleClientSidePDF = async () => {
+    if (!certificateRef.current) return
+    
+    try {
+      setIsGeneratingClientPDF(true)
+      
+      // First temporarily change the container's scale to ensure good quality
+      const certificateContainer = document.getElementById('certificate-container')
+      if (certificateContainer) {
+        // Save original styles
+        const originalScale = certificateContainer.style.transform
+        const originalWidth = certificateContainer.style.width
+        const originalHeight = certificateContainer.style.height
+        
+        // Remove scaling for capture
+        certificateContainer.style.transform = 'none'
+        certificateContainer.style.width = '11in'
+        certificateContainer.style.height = '8.5in'
+        
+        // Capture the certificate as a canvas
+        const canvas = await html2canvas(certificateRef.current, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        })
+        
+        // Restore original styles
+        certificateContainer.style.transform = originalScale
+        certificateContainer.style.width = originalWidth
+        certificateContainer.style.height = originalHeight
+        
+        // Create PDF (landscape letter size)
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'pt',
+          format: 'letter' // 11x8.5 inches
+        })
+        
+        // Calculate dimensions to maintain aspect ratio
+        const imgData = canvas.toDataURL('image/png')
+        const pdfWidth = pdf.internal.pageSize.getWidth()
+        const pdfHeight = pdf.internal.pageSize.getHeight()
+        const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height)
+        const imgWidth = canvas.width * ratio
+        const imgHeight = canvas.height * ratio
+        const x = (pdfWidth - imgWidth) / 2
+        const y = (pdfHeight - imgHeight) / 2
+        
+        // Add image to PDF
+        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight)
+        
+        // Save the PDF
+        pdf.save(`${courseName.replace(/\s+/g, '_')}_${userName.replace(/\s+/g, '_')}_Certificate.pdf`)
+        
+        toast({
+          title: 'Certificate downloaded!',
+          description: 'Your certificate has been successfully downloaded as a PDF.',
+        })
+      } else {
+        throw new Error('Certificate container not found')
+      }
+    } catch (error) {
+      console.error('Client-side PDF generation error:', error)
+      toast({
+        title: 'Download failed',
+        description: 'There was an error generating the PDF. Please try the server-side download instead.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsGeneratingClientPDF(false)
+    }
+  }
 
   const handleDownload = async () => {
     if (!certificateRef.current) return
@@ -115,7 +193,7 @@ export default function CertificateModal({
       console.error('Download error:', error)
       toast({
         title: 'Download failed',
-        description: `There was an error downloading your certificate: ${error.message}. Please try again.`,
+        description: `There was an error downloading your certificate: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: 'destructive',
       })
       
@@ -130,7 +208,7 @@ export default function CertificateModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Course Completion Certificate</DialogTitle>
         </DialogHeader>
@@ -143,37 +221,31 @@ export default function CertificateModal({
             </AlertDescription>
           </Alert>
         )}
-        
-        <div className="flex justify-center mt-4 mb-6">
-          <div className="scale-[0.6] origin-top transform border shadow-lg">
-            <CertificateTemplate
-              ref={certificateRef}
-              userName={userName}
-              courseName={courseName}
-              instructorName={instructorName}
-              completionDate={completionDate}
-              certificateId={certificateId}
-            />
-          </div>
-        </div>
-        
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-4 flex-wrap">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
+
+          {/* Client-side PDF generation button */}
           <Button 
-            onClick={handleDownload} 
-            disabled={isGenerating || !!errorMessage}
+            onClick={handleClientSidePDF} 
+            disabled={isGeneratingClientPDF}
+            variant="secondary"
           >
-            {isGenerating ? (
+            {isGeneratingClientPDF ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Generating PDF...
               </>
             ) : (
-              'Download Certificate'
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Download as PDF
+              </>
             )}
           </Button>
+          
+          
           
           {/* Debug button that appears if main download fails */}
           {showDebugDownload && (
@@ -205,7 +277,7 @@ export default function CertificateModal({
                   console.error("Debug download failed:", e);
                   toast({
                     title: 'Even debug download failed',
-                    description: e.message,
+                    description: e instanceof Error ? e.message : 'An unknown error occurred',
                     variant: 'destructive',
                   });
                 }
@@ -215,6 +287,20 @@ export default function CertificateModal({
             </Button>
           )}
         </div>
+        <div className="flex justify-center mt-4 mb-6">
+          <div id="certificate-container" className="scale-[0.6] origin-top transform border shadow-lg">
+            <CertificateTemplate
+              ref={certificateRef}
+              userName={userName}
+              courseName={courseName}
+              instructorName={instructorName}
+              completionDate={completionDate}
+              certificateId={certificateId}
+            />
+          </div>
+        </div>
+        
+        
       </DialogContent>
     </Dialog>
   )
