@@ -40,7 +40,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       id: user._id.toString(),
       name: user.name || session.user.name || "User",
-      email: user.email
+      email: user.email,
+      realName: user.realName || null
     });
   } catch (error) {
     console.error("Error fetching user:", error)

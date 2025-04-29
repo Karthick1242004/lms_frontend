@@ -797,7 +797,7 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
         <CertificateModal
           isOpen={showCertificate}
           onClose={() => setShowCertificate(false)}
-          userName={userDetails.name}
+          userName={userDetails.realName || userDetails.name}
           courseName={course.title}
           instructorName={course.instructor}
           completionDate={attendanceData?.certificate?.issuedDate || attendanceData?.assessment?.completedAt || new Date()}

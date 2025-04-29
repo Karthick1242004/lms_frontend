@@ -25,8 +25,8 @@ export async function POST(request: Request) {
     
     console.log("Certificate request body:", body)
     
-    if (!userName || !courseName || !courseId) {
-      console.error("Certificate generation: Missing required fields", { userName, courseName, courseId })
+    if (!courseName || !courseId) {
+      console.error("Certificate generation: Missing required fields", { courseName, courseId })
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -34,6 +34,14 @@ export async function POST(request: Request) {
     }
 
     const { db } = await connectToDatabase()
+    
+    // Get user's real name if available
+    const user = await db.collection("users").findOne({ email: userEmail })
+    
+    // Use the real name first, then fallback to the provided userName or session name
+    const certificateUserName = user?.realName || userName || session.user.name || "Student"
+    
+    console.log("Certificate user name:", certificateUserName)
     
     // Check if the user has passed the assessment
     const assessmentResult = await db.collection("assessmentResults").findOne({
@@ -74,7 +82,7 @@ export async function POST(request: Request) {
         userEmail,
         courseId,
         certificateId,
-        userName,
+        userName: certificateUserName,
         courseName, 
         instructorName: instructorName || "Course Instructor",
         issuedDate: new Date(),
@@ -85,6 +93,14 @@ export async function POST(request: Request) {
       certificate = newCertificate
       console.log("Created new certificate:", certificateId)
     } else {
+      // Update the certificate with the latest name if needed
+      if (certificate.userName !== certificateUserName) {
+        await db.collection("certificates").updateOne(
+          { _id: certificate._id },
+          { $set: { userName: certificateUserName } }
+        )
+        certificate.userName = certificateUserName
+      }
       console.log("Using existing certificate:", certificate.certificateId)
     }
     
@@ -230,7 +246,7 @@ export async function POST(request: Request) {
           <div class="certificate-title">Certificate of Completion</div>
           <div class="certificate-subtitle">This is to certify that</div>
           
-          <div class="recipient-name">${userName}</div>
+          <div class="recipient-name">${certificateUserName}</div>
           <div class="recipient-underline"></div>
           
           <div class="description">has successfully completed the course</div>

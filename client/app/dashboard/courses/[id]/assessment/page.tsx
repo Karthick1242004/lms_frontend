@@ -648,7 +648,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
           <CertificateModal
             isOpen={showCertificate}
             onClose={() => setShowCertificate(false)}
-            userName={userDetails?.name || "Student Name"}
+            userName={userDetails?.realName || userDetails?.name || "Student Name"}
             courseName={courseDetails?.title || "Course Title"}
             instructorName={courseDetails?.instructor || "Instructor"}
             completionDate={new Date()}

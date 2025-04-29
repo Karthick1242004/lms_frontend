@@ -11,9 +11,19 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { fetchCourses } from "@/lib/api"
 import { useStore } from "@/lib/store"
 import type { Course } from "@/lib/types"
-import { AlertCircle, PlusCircle } from "lucide-react"
+import { AlertCircle, PlusCircle, AlertTriangle } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { hasInstructorPrivileges } from "@/lib/auth-utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 // Fallback mock data to display if API fails
 const MOCK_COURSES: Course[] = [
@@ -53,6 +63,10 @@ export default function CourseList() {
   const { enrolledCourses, enrollInCourse, loadingEnrollment } = useStore()
   const [isEnrolling, setIsEnrolling] = useState<{[key: string]: boolean}>({})
   const isInstructor = hasInstructorPrivileges(session)
+  const [nameDialogOpen, setNameDialogOpen] = useState(false)
+  const [realName, setRealName] = useState("")
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [nameError, setNameError] = useState("")
 
   const {
     data: courses,
@@ -75,17 +89,53 @@ export default function CourseList() {
     }
   }, [error, toast, courses])
 
-  const handleEnroll = async (course: Course) => {
+  const openNameDialog = (course: Course) => {
+    setSelectedCourse(course)
+    setRealName("")
+    setNameError("")
+    setNameDialogOpen(true)
+  }
+
+  const handleRealNameSubmit = async () => {
+    if (!selectedCourse) return
+    
+    // Validate name input
+    if (!realName.trim()) {
+      setNameError("Please enter your real name")
+      return
+    }
+
+    // Name validation - allow only letters, spaces, and dots
+    const nameRegex = /^[A-Za-z\s.]+$/
+    if (!nameRegex.test(realName)) {
+      setNameError("Name can only contain letters, spaces, and dots")
+      return
+    }
+
+    setNameDialogOpen(false)
+    
     // Set loading state for this specific course
-    setIsEnrolling(prev => ({ ...prev, [course.id]: true }))
+    setIsEnrolling(prev => ({ ...prev, [selectedCourse.id]: true }))
     
     try {
-      const success = await enrollInCourse(course.id)
+      // First save the real name to user profile
+      const saveNameResponse = await fetch('/api/user/realname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ realName })
+      })
+      
+      if (!saveNameResponse.ok) {
+        throw new Error("Failed to save your real name")
+      }
+      
+      // Then enroll in course
+      const success = await enrollInCourse(selectedCourse.id)
       
       if (success) {
         toast({
           title: "Enrolled Successfully",
-          description: `You have been enrolled in ${course.title}`,
+          description: `You have been enrolled in ${selectedCourse.title}`,
         })
       } else {
         toast({
@@ -95,13 +145,15 @@ export default function CourseList() {
         })
       }
     } catch (error) {
+      console.error("Enrollment error:", error)
       toast({
         title: "Enrollment Failed",
-        description: "An error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "An error occurred. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setIsEnrolling(prev => ({ ...prev, [course.id]: false }))
+      setIsEnrolling(prev => ({ ...prev, [selectedCourse.id]: false }))
+      setSelectedCourse(null)
     }
   }
 
@@ -182,7 +234,7 @@ export default function CourseList() {
                 <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
               </Button>
               <Button 
-                onClick={() => handleEnroll(course)} 
+                onClick={() => isEnrolled ? null : openNameDialog(course)} 
                 disabled={isEnrolled || isButtonLoading}
               >
                 {isButtonLoading ? (
@@ -196,6 +248,52 @@ export default function CourseList() {
           </Card>
         )
       })}
+
+      {/* Real Name Dialog */}
+      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Enter Your Real Name</DialogTitle>
+            <DialogDescription>
+              Please provide your real name as it should appear on your certificate upon course completion.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {nameError && (
+              <div className="flex items-center gap-2 text-red-500 text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{nameError}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="realName" className="text-right">
+                Full Name
+              </Label>
+              <Input
+                id="realName"
+                value={realName}
+                onChange={(e) => setRealName(e.target.value)}
+                className="col-span-3"
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-md mt-2">
+              <p className="text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>This name will be used on your certificate. Please ensure it matches your official identification documents.</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRealNameSubmit}>
+              Continue Enrollment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
