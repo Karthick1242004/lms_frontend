@@ -12,6 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/components/ui/use-toast"
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import remarkGfm from 'remark-gfm'
+import { ComponentPropsWithoutRef, ReactNode } from 'react'
 
 interface Message {
   role: "user" | "model";
@@ -172,7 +177,7 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
       
       if (!aiResponse.ok) {
         const errorData = await aiResponse.json()
-        throw new Error(errorData.error || 'Failed to get AI response')
+        throw new Error('Failed to get AI response')
       }
       
       const data = await aiResponse.json()
@@ -242,54 +247,98 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
     }
   }
   
-  // Format message content with line breaks and code blocks
+  // Format message content with markdown support
   const formatMessageContent = (content: string) => {
-    // Check if the content contains code blocks
-    if (content.includes("```")) {
-      const segments = content.split(/(```(?:.*?)```)/g);
-      return (
-        <>
-          {segments.map((segment, i) => {
-            if (segment.startsWith("```") && segment.endsWith("```")) {
-              // Extract the code and language
-              const codeContent = segment.slice(3, -3);
-              const firstLineBreak = codeContent.indexOf('\n');
-              const language = firstLineBreak > 0 ? codeContent.slice(0, firstLineBreak).trim() : '';
-              const code = firstLineBreak > 0 ? codeContent.slice(firstLineBreak + 1) : codeContent;
-              
-              return (
-                <div key={i} className="my-2 w-full overflow-x-auto">
-                  <div className="bg-muted/70 rounded p-2 text-xs md:text-sm font-mono whitespace-pre-wrap break-all">
-                    {code}
-                  </div>
-                </div>
-              );
-            } else if (segment.trim()) {
-              // Regular text with line breaks
-              return (
-                <span key={i}>
-                  {segment.split('\n').map((line, j) => (
-                    <span key={j}>
-                      {line}
-                      {j < segment.split('\n').length - 1 && <br />}
-                    </span>
-                  ))}
-                </span>
-              );
-            }
-            return null;
-          })}
-        </>
-      );
+    // Simple messages without markdown formatting
+    // Check for various markdown indicators
+    if (!content.includes("```") && 
+        !content.includes("- ") && 
+        !content.includes("* ") &&
+        !content.includes("1. ") && 
+        !content.includes("#") &&
+        !content.includes("**") &&
+        !content.includes("|") &&
+        !content.includes("_")) {
+      return content.split('\n').map((line, i) => (
+        <span key={i}>
+          {line}
+          {i < content.split('\n').length - 1 && <br />}
+        </span>
+      ));
     }
     
-    // Regular text with line breaks (no code blocks)
-    return content.split('\n').map((line, i) => (
-      <span key={i}>
-        {line}
-        {i < content.split('\n').length - 1 && <br />}
-      </span>
-    ));
+    // Use ReactMarkdown for formatted content
+    return (
+      <div className="w-full overflow-hidden">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code({node, className, children, ...props}) {
+              const match = /language-(\w+)/.exec(className || '')
+              
+              return match ? (
+                <SyntaxHighlighter
+                  language={match[1]}
+                  style={vscDarkPlus}
+                  PreTag="div"
+                  className="rounded-md my-2"
+                  customStyle={{
+                    borderRadius: '0.375rem',
+                    fontSize: '0.85rem',
+                    margin: '0.75rem 0',
+                  }}
+                  showLineNumbers={true}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>
+                  {children}
+                </code>
+              )
+            },
+            // Style basic elements
+            p: ({children}) => <p className="my-2 text-sm">{children}</p>,
+            ul: ({children}) => <ul className="list-disc pl-6 my-3 space-y-2">{children}</ul>,
+            ol: ({children}) => <ol className="list-decimal pl-6 my-3 space-y-2">{children}</ol>,
+            li: ({children}) => (
+              <li className="my-1">
+                <div className="flex items-baseline">
+                  <div className="flex-1 ml-1">{children}</div>
+                </div>
+              </li>
+            ),
+            h1: ({children}) => <h1 className="text-xl font-bold my-3">{children}</h1>,
+            h2: ({children}) => <h2 className="text-lg font-bold my-3">{children}</h2>,
+            h3: ({children}) => <h3 className="text-base font-bold my-2">{children}</h3>,
+            blockquote: ({children}) => <blockquote className="border-l-4 border-muted-foreground pl-3 my-2 italic">{children}</blockquote>,
+            table: ({children}) => <div className="overflow-x-auto"><table className="min-w-full border border-border my-3">{children}</table></div>,
+            pre: ({children}) => <pre className="rounded-md my-2 bg-transparent overflow-hidden">{children}</pre>,
+            strong: ({children}) => <strong className="font-bold">{children}</strong>,
+            em: ({children}) => <em className="italic">{children}</em>,
+            // Style for double asterisks (bold) like **text**
+            text: ({children}) => {
+              if (typeof children === 'string' && children.includes('**')) {
+                const parts = children.split(/(\*\*.*?\*\*)/g);
+                return (
+                  <>
+                    {parts.map((part, i) => {
+                      if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
+                      }
+                      return <span key={i}>{part}</span>;
+                    })}
+                  </>
+                );
+              }
+              return <>{children}</>;
+            },
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
   }
   
   return (
@@ -365,9 +414,9 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary"
-                    } rounded-lg px-3 py-2`}
+                    } rounded-lg px-3 py-3`}
                   >
-                    <div className="flex gap-2">
+                    <div className="flex gap-3 w-full">
                       <div className="mt-0.5 shrink-0">
                         {message.role === "user" ? (
                           <User className="h-5 w-5" />
@@ -375,7 +424,7 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
                           <Bot className="h-5 w-5" />
                         )}
                       </div>
-                      <div className="break-words">
+                      <div className="break-words w-full">
                         {formatMessageContent(message.content)}
                       </div>
                     </div>

@@ -122,10 +122,15 @@ export async function GET(request: Request) {
     
     console.log("Launching puppeteer")
     
+    // Add type for error handling
+    interface PuppeteerError extends Error {
+      message: string;
+    }
+
     try {
       // Generate PDF with Puppeteer
       const browser = await puppeteer.launch({
-        headless: 'new',
+        headless: true,  // Changed from 'new' to true
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       })
       
@@ -159,15 +164,17 @@ export async function GET(request: Request) {
       })
     } catch (puppeteerError) {
       console.error("Puppeteer error:", puppeteerError)
+      const error = puppeteerError as PuppeteerError
       return NextResponse.json(
-        { error: "Error generating PDF", details: puppeteerError.message },
+        { error: "Error generating PDF", details: error.message },
         { status: 500 }
       )
     }
   } catch (error) {
     console.error("Error generating test certificate:", error)
+    const err = error as Error
     return NextResponse.json(
-      { error: "Failed to generate test certificate", details: error.message },
+      { error: "Failed to generate test certificate", details: err.message },
       { status: 500 }
     )
   }
