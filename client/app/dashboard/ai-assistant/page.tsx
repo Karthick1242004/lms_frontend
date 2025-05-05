@@ -296,8 +296,8 @@ export default function AIAssistantPage() {
       </DashboardHeader>
       <Separator />
       
-      <div className="flex-1 overflow-hidden p-4 md:p-6">
-        <div className="h-full flex gap-4 md:gap-6">
+      <div className="flex-1 p-4 md:p-6">
+        <div className="h-full flex gap-2 md:gap-4">
           {/* Collapsible history sidebar */}
           <div 
             className={cn(

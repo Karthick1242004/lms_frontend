@@ -269,7 +269,7 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
     
     // Use ReactMarkdown for formatted content
     return (
-      <div className="w-full overflow-hidden">
+      <div className="w-full ">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -382,7 +382,7 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
       )}
       
       <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea ref={scrollRef} className="h-[40vh] md:h-[400px] p-4">
+        <ScrollArea ref={scrollRef} className="h-[50vh] px-4 py-2">
           {initialLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-12 w-3/4" />
@@ -410,7 +410,7 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
                   }`}
                 >
                   <div
-                    className={`flex max-w-[85%] sm:max-w-[80%] ${
+                    className={`flex max-w-[85%] sm:max-w-[100%] ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary"
@@ -433,7 +433,7 @@ export default function AIChatInterface({ chatId, onMessageSent }: AIChatInterfa
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="flex max-w-[85%] sm:max-w-[80%] bg-secondary rounded-lg px-3 py-2">
+                  <div className="flex max-w-[100%] sm:max-w-[100%] bg-secondary rounded-lg px-3 py-2">
                     <div className="flex gap-2">
                       <div className="mt-0.5 shrink-0">
                         <Bot className="h-5 w-5" />
