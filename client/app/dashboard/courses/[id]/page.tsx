@@ -42,7 +42,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
   return (
     <div className="flex flex-col h-screen">
-      <DashboardHeader user={session?.user} />
+      {/* <DashboardHeader user={session?.user} /> */}
       <div className="flex-1 p-6 overflow-auto">
         <CourseDetails courseId={params.id} />
       </div>

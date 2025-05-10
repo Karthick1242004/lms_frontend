@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { fetchCourses } from "@/lib/api"
 import { useStore } from "@/lib/store"
 import type { Course } from "@/lib/types"
-import { AlertCircle, PlusCircle, AlertTriangle } from "lucide-react"
+import { AlertCircle, PlusCircle, AlertTriangle, Search, Filter } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { hasInstructorPrivileges } from "@/lib/auth-utils"
 import {
@@ -24,6 +24,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Progress } from "@/components/ui/progress"
 
 // Fallback mock data to display if API fails
 const MOCK_COURSES: Course[] = [
@@ -67,6 +75,14 @@ export default function CourseList() {
   const [realName, setRealName] = useState("")
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [nameError, setNameError] = useState("")
+  
+  // Add new state for search and filters
+  const [searchQuery, setSearchQuery] = useState("")
+  const [durationFilter, setDurationFilter] = useState("all")
+  const [levelFilter, setLevelFilter] = useState("all")
+  const [instructorFilter, setInstructorFilter] = useState("all")
+  const [courseProgress, setCourseProgress] = useState<{[key: string]: number}>({})
+  const [attendanceProgress, setAttendanceProgress] = useState<{[key: string]: number}>({})
 
   const {
     data: courses,
@@ -75,6 +91,17 @@ export default function CourseList() {
   } = useQuery({
     queryKey: ["courses"],
     queryFn: fetchCourses,
+  })
+
+  // Add query for fetching course progress
+  const { data: progressData } = useQuery({
+    queryKey: ["courseProgress"],
+    queryFn: async () => {
+      const response = await fetch('/api/user/progress')
+      if (!response.ok) throw new Error('Failed to fetch progress')
+      return response.json()
+    },
+    enabled: !!session?.user
   })
 
   useEffect(() => {
@@ -88,6 +115,58 @@ export default function CourseList() {
       })
     }
   }, [error, toast, courses])
+
+  useEffect(() => {
+    if (progressData?.courses) {
+      const progressMap: {[key: string]: number} = {}
+      Object.entries(progressData.courses).forEach(([courseId, data]: [string, any]) => {
+        progressMap[courseId] = data.overallProgress || 0
+      })
+      setCourseProgress(progressMap)
+    }
+  }, [progressData])
+
+  // Fetch attendance progress for each enrolled course
+  useEffect(() => {
+    const fetchProgress = async () => {
+      const progressMap: {[key: string]: number} = {}
+      await Promise.all(
+        enrolledCourses.map(async (courseId) => {
+          try {
+            const res = await fetch(`/api/attendance/status?courseId=${courseId}`)
+            if (res.ok) {
+              const data = await res.json()
+              progressMap[courseId] = data.progressPercentage || 0
+            } else {
+              progressMap[courseId] = 0
+            }
+          } catch {
+            progressMap[courseId] = 0
+          }
+        })
+      )
+      setAttendanceProgress(progressMap)
+    }
+    if (enrolledCourses.length > 0) {
+      fetchProgress()
+    }
+  }, [enrolledCourses])
+
+  // Filter courses based on search and filters
+  const filteredCourses = courses?.filter(course => {
+    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         course.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesDuration = durationFilter === "all" || course.duration.includes(durationFilter)
+    const matchesLevel = levelFilter === "all" || course.level === levelFilter
+    const matchesInstructor = instructorFilter === "all" || course.instructor === instructorFilter
+    
+    return matchesSearch && matchesDuration && matchesLevel && matchesInstructor
+  })
+
+  // Get unique values for filters
+  const uniqueDurations = [...new Set(courses?.map(c => c.duration) || [])]
+  const uniqueLevels = [...new Set(courses?.map(c => c.level) || [])]
+  const uniqueInstructors = [...new Set(courses?.map(c => c.instructor) || [])]
 
   const openNameDialog = (course: Course) => {
     setSelectedCourse(course)
@@ -203,51 +282,109 @@ export default function CourseList() {
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {displayCourses.map((course) => {
-        const isEnrolled = enrolledCourses.includes(course.id)
-        const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
+    <div className="space-y-6">
+      {/* Search and Filters */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="relative">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search courses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={durationFilter} onValueChange={setDurationFilter}>
+          <SelectTrigger>
+            <SelectValue placeholder="All Durations" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Durations</SelectItem>
+            {uniqueDurations.map(duration => (
+              <SelectItem key={duration} value={duration}>{duration}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger>
+            <SelectValue placeholder="All Difficulty Levels" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Difficulty Levels</SelectItem>
+            {uniqueLevels.map(level => (
+              <SelectItem key={level} value={level}>{level}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={instructorFilter} onValueChange={setInstructorFilter}>
+          <SelectTrigger>
+            <SelectValue placeholder="All Instructors" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Instructors</SelectItem>
+            {uniqueInstructors.map(instructor => (
+              <SelectItem key={instructor} value={instructor}>{instructor}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        return (
-          <Card key={course.id} className="overflow-hidden">
-            <CardHeader className="p-0">
-              <img 
-                src={course.image || "/placeholder.svg"} 
-                alt={course.title} 
-                className="h-48 w-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = "/placeholder.svg";
-                }}
-              />
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <CardTitle className="line-clamp-1">{course.title}</CardTitle>
-                <Badge variant={isEnrolled ? "default" : "outline"}>{isEnrolled ? "Enrolled" : course.level}</Badge>
-              </div>
-              <CardDescription className="line-clamp-2 mb-4">{course.description}</CardDescription>
-              <div className="text-sm text-muted-foreground">Instructor: {course.instructor}</div>
-            </CardContent>
-            <CardFooter className="flex justify-between p-6 pt-0">
-              <Button variant="outline" asChild>
-                <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
-              </Button>
-              <Button 
-                onClick={() => isEnrolled ? null : openNameDialog(course)} 
-                disabled={isEnrolled || isButtonLoading}
-              >
-                {isButtonLoading ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
-                    Loading...
-                  </>
-                ) : isEnrolled ? "Enrolled" : "Enroll Now"}
-              </Button>
-            </CardFooter>
-          </Card>
-        )
-      })}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredCourses?.map((course) => {
+          const isEnrolled = enrolledCourses.includes(course.id)
+          const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
+          const progress = isEnrolled ? (attendanceProgress[course.id] ?? 0) : 0
+
+          return (
+            <Card key={course.id} className="overflow-hidden">
+              <CardHeader className="p-0">
+                <img 
+                  src={course.image || "/placeholder.svg"} 
+                  alt={course.title} 
+                  className="h-48 w-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/placeholder.svg";
+                  }}
+                />
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <CardTitle className="line-clamp-1">{course.title}</CardTitle>
+                  <Badge variant={isEnrolled ? "default" : "outline"}>{isEnrolled ? "Enrolled" : course.level}</Badge>
+                </div>
+                <CardDescription className="line-clamp-2 mb-4">{course.description}</CardDescription>
+                <div className="text-sm text-muted-foreground mb-2">Instructor: {course.instructor}</div>
+                {isEnrolled && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="flex justify-between p-6 pt-0">
+                <Button variant="outline" asChild>
+                  <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
+                </Button>
+                <Button 
+                  onClick={() => isEnrolled ? null : openNameDialog(course)} 
+                  disabled={isEnrolled || isButtonLoading}
+                >
+                  {isButtonLoading ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
+                      Loading...
+                    </>
+                  ) : isEnrolled ? "Enrolled" : "Enroll Now"}
+                </Button>
+              </CardFooter>
+            </Card>
+          )
+        })}
+      </div>
 
       {/* Real Name Dialog */}
       <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>

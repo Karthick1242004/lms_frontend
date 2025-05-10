@@ -214,6 +214,15 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
   }
   
   const handleLessonClick = (moduleIndex: number, lessonIndex: number, title: string) => {
+    if (!isEnrolled) {
+      toast({
+        title: "Enrollment Required",
+        description: "Please enroll in the course to access the lessons.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setSelectedLesson({
       moduleIndex,
       lessonIndex,
