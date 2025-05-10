@@ -8,7 +8,7 @@ import { connectToDatabase } from "@/lib/mongodb"
 
 interface EditCoursePageProps {
   params: {
-    id: string
+    courseId: string
   }
 }
 
@@ -22,7 +22,7 @@ export default async function EditCoursePage({ params }: EditCoursePageProps) {
   
   // Fetch the course data
   const { db } = await connectToDatabase()
-  const course = await db.collection("coursedetails").findOne({ id: params.id })
+  const course = await db.collection("coursedetails").findOne({ id: params.courseId })
   
   if (!course) {
     notFound()

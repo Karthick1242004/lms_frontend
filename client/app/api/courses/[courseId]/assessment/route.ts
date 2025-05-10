@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth"
 // GET endpoint to fetch assessment questions for a course
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { courseId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,7 +18,7 @@ export async function GET(
       )
     }
 
-    const courseId = params.id
+    const courseId = params.courseId
     
     // Connect to the database
     const { db } = await connectToDatabase()
@@ -110,7 +110,7 @@ export async function GET(
 // POST endpoint to submit assessment answers
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { courseId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -122,7 +122,7 @@ export async function POST(
       )
     }
 
-    const courseId = params.id
+    const courseId = params.courseId
     const { answers } = await request.json()
     
     if (!answers || !Array.isArray(answers)) {

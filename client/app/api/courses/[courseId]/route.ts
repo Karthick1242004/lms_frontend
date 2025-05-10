@@ -3,12 +3,12 @@ import { connectToDatabase } from "@/lib/mongodb"
 
 interface RouteParams {
   params: {
-    id: string
+    courseId: string
   }
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
-  if (!params.id) {
+  if (!params.courseId) {
     return NextResponse.json(
       { error: "Course ID is required" },
       { status: 400 }
@@ -18,17 +18,17 @@ export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { db } = await connectToDatabase()
     
-    const course = await db.collection("coursedetails").findOne({ id: params.id })
+    const course = await db.collection("coursedetails").findOne({ id: params.courseId })
     
     if (!course) {
-      console.log(`Course not found with id: ${params.id}`)
+      console.log(`Course not found with id: ${params.courseId}`)
       return NextResponse.json(
         { error: "Course not found" },
         { status: 404 }
       )
     }
 
-    console.log(`Successfully found course with id: ${params.id}`)
+    console.log(`Successfully found course with id: ${params.courseId}`)
     
     return NextResponse.json(course)
   } catch (error) {

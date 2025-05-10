@@ -329,31 +329,31 @@ export default function CourseList() {
         </Select>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filteredCourses?.map((course) => {
-          const isEnrolled = enrolledCourses.includes(course.id)
-          const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
+        const isEnrolled = enrolledCourses.includes(course.id)
+        const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
           const progress = isEnrolled ? (attendanceProgress[course.id] ?? 0) : 0
 
-          return (
-            <Card key={course.id} className="overflow-hidden">
-              <CardHeader className="p-0">
-                <img 
-                  src={course.image || "/placeholder.svg"} 
-                  alt={course.title} 
-                  className="h-48 w-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/placeholder.svg";
-                  }}
-                />
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <CardTitle className="line-clamp-1">{course.title}</CardTitle>
-                  <Badge variant={isEnrolled ? "default" : "outline"}>{isEnrolled ? "Enrolled" : course.level}</Badge>
-                </div>
-                <CardDescription className="line-clamp-2 mb-4">{course.description}</CardDescription>
+        return (
+          <Card key={course.id} className="overflow-hidden">
+            <CardHeader className="p-0">
+              <img 
+                src={course.image || "/placeholder.svg"} 
+                alt={course.title} 
+                className="h-48 w-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "/placeholder.svg";
+                }}
+              />
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <CardTitle className="line-clamp-1">{course.title}</CardTitle>
+                <Badge variant={isEnrolled ? "default" : "outline"}>{isEnrolled ? "Enrolled" : course.level}</Badge>
+              </div>
+              <CardDescription className="line-clamp-2 mb-4">{course.description}</CardDescription>
                 <div className="text-sm text-muted-foreground mb-2">Instructor: {course.instructor}</div>
                 {isEnrolled && (
                   <div className="space-y-2">
@@ -364,26 +364,26 @@ export default function CourseList() {
                     <Progress value={progress} className="h-2" />
                   </div>
                 )}
-              </CardContent>
-              <CardFooter className="flex justify-between p-6 pt-0">
-                <Button variant="outline" asChild>
-                  <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
-                </Button>
-                <Button 
-                  onClick={() => isEnrolled ? null : openNameDialog(course)} 
-                  disabled={isEnrolled || isButtonLoading}
-                >
-                  {isButtonLoading ? (
-                    <>
-                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
-                      Loading...
-                    </>
-                  ) : isEnrolled ? "Enrolled" : "Enroll Now"}
-                </Button>
-              </CardFooter>
-            </Card>
-          )
-        })}
+            </CardContent>
+            <CardFooter className="flex justify-between p-6 pt-0">
+              <Button variant="outline" asChild>
+                <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
+              </Button>
+              <Button 
+                onClick={() => isEnrolled ? null : openNameDialog(course)} 
+                disabled={isEnrolled || isButtonLoading}
+              >
+                {isButtonLoading ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
+                    Loading...
+                  </>
+                ) : isEnrolled ? "Enrolled" : "Enroll Now"}
+              </Button>
+            </CardFooter>
+          </Card>
+        )
+      })}
       </div>
 
       {/* Real Name Dialog */}

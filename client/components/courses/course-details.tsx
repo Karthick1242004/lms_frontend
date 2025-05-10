@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
@@ -10,16 +10,54 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { useStore } from "@/lib/store"
 import type { Course, Lesson } from "@/lib/types"
-import { CheckCircle, Clock, PlayCircle, Users, AlertCircle, Award } from "lucide-react"
+import { CheckCircle, Clock, PlayCircle, Users, AlertCircle, Award, Send } from "lucide-react"
 import LessonVideo from "./lesson-video"
 import { useQuery } from "@tanstack/react-query"
 import { fetchCourseById } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { generateCertificateId } from "@/lib/utils"
 import CertificateModal from "@/components/certificate/certificate-modal"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface CourseDetailsProps {
   courseId: string
+}
+
+// Helper function for formatting dates
+const formatTimeAgo = (date: Date | string): string => {
+  const now = new Date()
+  const messageDate = typeof date === 'string' ? new Date(date) : date
+  const diffInSeconds = Math.floor((now.getTime() - messageDate.getTime()) / 1000)
+  
+  if (diffInSeconds < 60) return 'just now'
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60)
+  if (diffInMinutes < 60) return `${diffInMinutes} min ago`
+  
+  const diffInHours = Math.floor(diffInMinutes / 60)
+  if (diffInHours < 24) return `${diffInHours} hr ago`
+  
+  const diffInDays = Math.floor(diffInHours / 24)
+  if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`
+  
+  // Format date manually: "Jan 1, 2023"
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const day = messageDate.getDate()
+  const month = months[messageDate.getMonth()]
+  const year = messageDate.getFullYear()
+  
+  return `${month} ${day}, ${year}`
+}
+
+// Interface for chat messages
+interface ChatMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  userImage?: string;
+  content: string;
+  timestamp: string;
 }
 
 export default function CourseDetails({ courseId }: CourseDetailsProps) {
@@ -34,6 +72,17 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
   const { enrolledCourses, enrollInCourse, loadingEnrollment } = useStore()
   const [isEnrolling, setIsEnrolling] = useState(false)
   const [showCertificate, setShowCertificate] = useState(false)
+  
+  // Chat state
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messageInput, setMessageInput] = useState("")
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [hasMoreMessages, setHasMoreMessages] = useState(true)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messageContainerRef = useRef<HTMLDivElement>(null)
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<Date | null>(null)
+  const [canSendMessage, setCanSendMessage] = useState(true)
+  const [page, setPage] = useState(1)
 
   const {
     data: course,
@@ -43,6 +92,9 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     queryKey: ["course", courseId],
     queryFn: () => fetchCourseById(courseId),
   })
+
+  // Store isEnrolled in a variable after we have the course and enrolledCourses
+  const isEnrolled = !!course && enrolledCourses.includes(course.id)
 
   // Add a effect to handle errors
   useEffect(() => {
@@ -76,7 +128,7 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     enabled: !!courseId && enrolledCourses.includes(courseId)
   })
 
-  // Add a new query to fetch user details
+  // Query for fetching user details
   const { data: userDetails } = useQuery({
     queryKey: ['user-details'],
     queryFn: async () => {
@@ -90,7 +142,7 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     enabled: !!courseId && enrolledCourses.includes(courseId)
   })
 
-  // Add a new query to fetch user progress data
+  // Query for fetching user progress data
   const {
     data: userProgressData,
     isLoading: isLoadingUserProgress,
@@ -106,6 +158,23 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
       return data
     },
     enabled: !!courseId && enrolledCourses.includes(courseId)
+  })
+
+  // Query for fetching chat messages
+  const {
+    data: chatData,
+    isLoading: isLoadingInitialMessages,
+    refetch: refetchMessages
+  } = useQuery({
+    queryKey: ["chatMessages", courseId, page],
+    queryFn: async () => {
+      const response = await fetch(`/api/courses/${courseId}/discussion?page=${page}&limit=20`)
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat messages")
+      }
+      return response.json()
+    },
+    enabled: !!courseId && activeTab === "discussion" && isEnrolled
   })
 
   // Refetch progress data when a lesson is completed
@@ -130,6 +199,127 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
     
     return () => clearInterval(intervalId)
   }, [courseId, enrolledCourses, refetchAttendance, refetchUserProgress, attendanceData])
+
+  // Effect to populate messages when chat data changes
+  useEffect(() => {
+    if (chatData?.messages && activeTab === "discussion") {
+      if (page === 1) {
+        setMessages(chatData.messages)
+      } else {
+        setMessages(prev => [...chatData.messages, ...prev])
+      }
+      setHasMoreMessages(chatData.hasMore || false)
+      setIsLoadingMessages(false)
+    }
+  }, [chatData, activeTab])
+  
+  // Scroll to bottom on new message
+  useEffect(() => {
+    if (activeTab === "discussion" && messagesEndRef.current && page === 1) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages, activeTab])
+  
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    if (!messageContainerRef.current || activeTab !== "discussion" || !isEnrolled) return
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries
+        if (entry.isIntersecting && hasMoreMessages && !isLoadingMessages) {
+          loadMoreMessages()
+        }
+      },
+      { threshold: 0.1 }
+    )
+    
+    const container = messageContainerRef.current
+    observer.observe(container)
+    
+    return () => {
+      if (container) {
+        observer.unobserve(container)
+      }
+    }
+  }, [hasMoreMessages, isLoadingMessages, activeTab, isEnrolled])
+  
+  // Function to load more messages
+  const loadMoreMessages = () => {
+    if (isLoadingMessages || !hasMoreMessages) return
+    
+    setIsLoadingMessages(true)
+    setPage(prev => prev + 1)
+  }
+  
+  // Handle sending a new message
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !canSendMessage || !isEnrolled) return
+    
+    // Implement anti-spam control - only allow a message every 2 seconds
+    setCanSendMessage(false)
+    setTimeout(() => setCanSendMessage(true), 2000)
+    
+    // Add optimistic update
+    const optimisticMessage: ChatMessage = {
+      id: Date.now().toString(),
+      userId: userDetails?.id || "",
+      userName: userDetails?.realName || userDetails?.name || "Anonymous",
+      userImage: userDetails?.image || undefined,
+      content: messageInput,
+      timestamp: new Date().toISOString(),
+    }
+    
+    setMessages(prev => [...prev, optimisticMessage])
+    setMessageInput("")
+    setLastMessageTimestamp(new Date())
+    
+    try {
+      const response = await fetch(`/api/courses/${courseId}/discussion`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: messageInput,
+        }),
+      })
+      
+      if (!response.ok) {
+        // Get error message from response if available
+        let errorMessage = "Failed to send message";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // Use default error message if parsing fails
+        }
+        
+        // Remove optimistic message 
+        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+        
+        // Show error toast
+        toast({
+          title: "Failed to send message",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
+        return; // Return early instead of throwing
+      }
+      
+      // After successful send, refresh the messages
+      refetchMessages()
+    } catch (error) {
+      console.error("Error sending message:", error)
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id))
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   if (isLoading) {
     return (
@@ -176,8 +366,6 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
       </div>
     )
   }
-
-  const isEnrolled = enrolledCourses.includes(course.id)
 
   const handleEnroll = async () => {
     setIsEnrolling(true)
@@ -361,10 +549,11 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
               <TabsTrigger value="resources">Resources</TabsTrigger>
+              <TabsTrigger value="discussion">Discussion</TabsTrigger>
             </TabsList>
 
             <TabsList className="mt-2 grid w-full grid-cols-1">
@@ -615,6 +804,115 @@ export default function CourseDetails({ courseId }: CourseDetailsProps) {
                     })}
                   </div>
                 </div>
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="discussion">
+              <CardContent className="p-6">
+                {!isEnrolled ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Join the Discussion</h3>
+                    <p className="text-muted-foreground mb-6">
+                      Enroll in this course to participate in discussions with other students.
+                    </p>
+                    <Button onClick={handleEnroll} disabled={isEnrolling || loadingEnrollment}>
+                      {isEnrolling || loadingEnrollment ? (
+                        <>
+                          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
+                          Loading...
+                        </>
+                      ) : "Enroll Now"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col h-[60vh]">
+                    <div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-4" ref={messageContainerRef}>
+                      {isLoadingInitialMessages && page === 1 ? (
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <div key={index} className="flex items-start gap-3 animate-pulse">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-2 flex-1">
+                              <Skeleton className="h-4 w-1/4" />
+                              <Skeleton className="h-16 w-full" />
+                            </div>
+                          </div>
+                        ))
+                      ) : messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center">
+                          <p className="text-muted-foreground">No messages yet. Be the first to start the discussion!</p>
+                        </div>
+                      ) : (
+                        <>
+                          {hasMoreMessages && (
+                            <div className="text-center py-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={loadMoreMessages}
+                                disabled={isLoadingMessages}
+                              >
+                                {isLoadingMessages ? "Loading..." : "Load more messages"}
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {messages.map((message) => (
+                            <div key={message.id} className="flex items-start gap-3">
+                              <Avatar>
+                                <AvatarImage src={message.userImage} alt={message.userName} />
+                                <AvatarFallback>
+                                  {message.userName?.split(" ")
+                                    .map(n => n[0])
+                                    .join("")
+                                    .slice(0, 2)
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="space-y-1 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">{message.userName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatTimeAgo(message.timestamp)}
+                                  </span>
+                                </div>
+                                <div className="bg-accent/50 p-3 rounded-lg text-sm">
+                                  {message.content}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <div ref={messagesEndRef} />
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Message Input */}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Type your message here..."
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault()
+                            handleSendMessage()
+                          }
+                        }}
+                        disabled={!canSendMessage}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={handleSendMessage} 
+                        disabled={!messageInput.trim() || !canSendMessage}
+                        size="icon"
+                      >
+                        <Send className="h-4 w-4" />
+                        <span className="sr-only">Send</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </TabsContent>
           </Tabs>
