@@ -2,6 +2,57 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { hasInstructorPrivileges, hasAdminPrivileges } from "@/lib/auth-utils";
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    // Check if user is authenticated
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user has instructor or admin privileges
+    const isInstructorOrAdmin = hasInstructorPrivileges(session) || hasAdminPrivileges(session);
+    
+    if (!isInstructorOrAdmin) {
+      return NextResponse.json(
+        { error: "Unauthorized - Only instructors or admins can access instructor courses" },
+        { status: 403 }
+      );
+    }
+
+    const { db } = await connectToDatabase();
+    
+    // Fetch courses based on user role
+    let coursesData;
+    
+    if (hasAdminPrivileges(session)) {
+      // Admins can see all courses
+      coursesData = await db.collection("coursedetails")
+        .find({})
+        .toArray();
+    } else {
+      // Instructors can only see their own courses
+      coursesData = await db.collection("coursedetails")
+        .find({ instructor: session.user.name })
+        .toArray();
+    }
+    
+    // Return the courses
+    return NextResponse.json(coursesData);
+  } catch (error) {
+    console.error("Error fetching instructor courses:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch instructor courses" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
