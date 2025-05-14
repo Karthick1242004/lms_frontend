@@ -296,8 +296,8 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
       
       // If passed, ensure we have the necessary data for certificate
       if (data.passed) {
-        refetchCourseDetails()
-        refetchUserDetails()
+      refetchCourseDetails()
+      refetchUserDetails()
       }
     } catch (error) {
       console.error("Error submitting assessment:", error)
@@ -772,7 +772,7 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
                 : "Answer selected"}
             </div>
             
-            <Button 
+          <Button 
               onClick={() => handleAnswerSubmit(false)}
               disabled={isSubmitting}
             >
@@ -786,10 +786,10 @@ export default function AssessmentPage({ params }: AssessmentPageProps) {
               ) : (
                 "Submit Assessment"
               )}
-            </Button>
+          </Button>
           </CardFooter>
         </Card>
       </div>
     </div>
   )
-}
+} 
