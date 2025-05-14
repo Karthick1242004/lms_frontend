@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { fetchCourses } from "@/lib/api"
 import { useStore } from "@/lib/store"
 import type { Course } from "@/lib/types"
-import { AlertCircle, PlusCircle, AlertTriangle, Search, Filter } from "lucide-react"
+import { AlertCircle, PlusCircle, AlertTriangle, Search, Filter, X } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { hasInstructorPrivileges } from "@/lib/auth-utils"
 import {
@@ -76,11 +76,25 @@ export default function CourseList() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [nameError, setNameError] = useState("")
   
-  // Add new state for search and filters
-  const [searchQuery, setSearchQuery] = useState("")
-  const [durationFilter, setDurationFilter] = useState("all")
-  const [levelFilter, setLevelFilter] = useState("all")
-  const [instructorFilter, setInstructorFilter] = useState("all")
+  // Add state for filter dialog
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  
+  // Current applied filters
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchQuery: "",
+    durationFilter: "all",
+    levelFilter: "all",
+    instructorFilter: "all"
+  })
+  
+  // Temporary filters (for the dialog)
+  const [tempFilters, setTempFilters] = useState({
+    searchQuery: "",
+    durationFilter: "all",
+    levelFilter: "all",
+    instructorFilter: "all"
+  })
+  
   const [courseProgress, setCourseProgress] = useState<{[key: string]: number}>({})
   const [attendanceProgress, setAttendanceProgress] = useState<{[key: string]: number}>({})
 
@@ -105,7 +119,6 @@ export default function CourseList() {
   })
 
   useEffect(() => {
-    console.log("Courses data in component:", courses);
     if (error) {
       console.error("Error loading courses:", error)
       toast({
@@ -152,21 +165,47 @@ export default function CourseList() {
     }
   }, [enrolledCourses])
 
-  // Filter courses based on search and filters
-  const filteredCourses = courses?.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         course.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesDuration = durationFilter === "all" || course.duration.includes(durationFilter)
-    const matchesLevel = levelFilter === "all" || course.level === levelFilter
-    const matchesInstructor = instructorFilter === "all" || course.instructor === instructorFilter
-    
-    return matchesSearch && matchesDuration && matchesLevel && matchesInstructor
-  })
+  // Open the filter dialog and initialize temp filters with current applied filters
+  const openFilterDialog = () => {
+    setTempFilters({...appliedFilters})
+    setFilterDialogOpen(true)
+  }
+  
+  // Apply the filters from the dialog
+  const applyFilters = () => {
+    setAppliedFilters({...tempFilters})
+    setFilterDialogOpen(false)
+  }
+  
+  // Clear all filters
+  const clearFilters = () => {
+    const resetFilters = {
+      searchQuery: "",
+      durationFilter: "all",
+      levelFilter: "all",
+      instructorFilter: "all"
+    }
+    setTempFilters(resetFilters)
+    setAppliedFilters(resetFilters)
+    setFilterDialogOpen(false)
+  }
 
   // Get unique values for filters
   const uniqueDurations = [...new Set(courses?.map(c => c.duration) || [])]
   const uniqueLevels = [...new Set(courses?.map(c => c.level) || [])]
   const uniqueInstructors = [...new Set(courses?.map(c => c.instructor) || [])]
+
+  // Filter courses based on applied filters
+  const filteredCourses = courses?.filter(course => {
+    const matchesSearch = !appliedFilters.searchQuery || 
+                         course.title.toLowerCase().includes(appliedFilters.searchQuery.toLowerCase()) ||
+                         course.description.toLowerCase().includes(appliedFilters.searchQuery.toLowerCase())
+    const matchesDuration = appliedFilters.durationFilter === "all" || course.duration.includes(appliedFilters.durationFilter)
+    const matchesLevel = appliedFilters.levelFilter === "all" || course.level === appliedFilters.levelFilter
+    const matchesInstructor = appliedFilters.instructorFilter === "all" || course.instructor === appliedFilters.instructorFilter
+    
+    return matchesSearch && matchesDuration && matchesLevel && matchesInstructor
+  })
 
   const openNameDialog = (course: Course) => {
     setSelectedCourse(course)
@@ -238,20 +277,19 @@ export default function CourseList() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
           <Card key={i} className="overflow-hidden">
             <CardHeader className="p-0">
-              <Skeleton className="h-48 rounded-none" />
+              <Skeleton className="h-32 rounded-none" />
             </CardHeader>
-            <CardContent className="p-6">
-              <Skeleton className="h-6 w-2/3 mb-2" />
-              <Skeleton className="h-4 w-full mb-4" />
-              <Skeleton className="h-4 w-1/2" />
+            <CardContent className="p-4">
+              <Skeleton className="h-5 w-2/3 mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-3 w-1/2" />
             </CardContent>
-            <CardFooter className="flex justify-between p-6 pt-0">
-              <Skeleton className="h-10 w-24" />
-              <Skeleton className="h-10 w-24" />
+            <CardFooter className="flex justify-between p-4 pt-0">
+              <Skeleton className="h-8 w-20" />
             </CardFooter>
           </Card>
         ))}
@@ -281,110 +319,264 @@ export default function CourseList() {
     )
   }
 
+  // Check if any filters are active
+  const hasActiveFilters = 
+    appliedFilters.searchQuery ||
+    appliedFilters.durationFilter !== "all" ||
+    appliedFilters.levelFilter !== "all" ||
+    appliedFilters.instructorFilter !== "all";
+
   return (
     <div className="space-y-6">
-      {/* Search and Filters */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="relative">
+      {/* Search bar and filter button */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search courses..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={appliedFilters.searchQuery}
+            onChange={(e) => setAppliedFilters({...appliedFilters, searchQuery: e.target.value})}
             className="pl-8"
           />
         </div>
-        <Select value={durationFilter} onValueChange={setDurationFilter}>
-          <SelectTrigger>
-            <SelectValue placeholder="All Durations" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Durations</SelectItem>
-            {uniqueDurations.map(duration => (
-              <SelectItem key={duration} value={duration}>{duration}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={levelFilter} onValueChange={setLevelFilter}>
-          <SelectTrigger>
-            <SelectValue placeholder="All Difficulty Levels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Difficulty Levels</SelectItem>
-            {uniqueLevels.map(level => (
-              <SelectItem key={level} value={level}>{level}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={instructorFilter} onValueChange={setInstructorFilter}>
-          <SelectTrigger>
-            <SelectValue placeholder="All Instructors" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Instructors</SelectItem>
-            {uniqueInstructors.map(instructor => (
-              <SelectItem key={instructor} value={instructor}>{instructor}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Button 
+          onClick={openFilterDialog} 
+          variant={hasActiveFilters ? "default" : "outline"}
+          className="gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          Filters
+          {hasActiveFilters && (
+            <Badge variant="outline" className="ml-1 bg-primary/20 text-primary">
+              {Object.values(appliedFilters).filter(v => v && v !== "all").length}
+            </Badge>
+          )}
+        </Button>
       </div>
+      
+      {/* Active filters display */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2">
+          {appliedFilters.searchQuery && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Search: {appliedFilters.searchQuery}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setAppliedFilters({...appliedFilters, searchQuery: ""})}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {appliedFilters.durationFilter !== "all" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Duration: {appliedFilters.durationFilter}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setAppliedFilters({...appliedFilters, durationFilter: "all"})}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {appliedFilters.levelFilter !== "all" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Level: {appliedFilters.levelFilter}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setAppliedFilters({...appliedFilters, levelFilter: "all"})}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          {appliedFilters.instructorFilter !== "all" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Instructor: {appliedFilters.instructorFilter}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 p-0 ml-1"
+                onClick={() => setAppliedFilters({...appliedFilters, instructorFilter: "all"})}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 text-xs"
+            onClick={clearFilters}
+          >
+            Clear all
+          </Button>
+        </div>
+      )}
 
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Course Grid with smaller cards */}
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredCourses?.map((course) => {
-        const isEnrolled = enrolledCourses.includes(course.id)
-        const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
+          const isEnrolled = enrolledCourses.includes(course.id)
+          const isButtonLoading = isEnrolling[course.id] || loadingEnrollment
           const progress = isEnrolled ? (attendanceProgress[course.id] ?? 0) : 0
 
-        return (
-          <Card key={course.id} className="overflow-hidden">
-            <CardHeader className="p-0">
-              <img 
-                src={course.image || "/placeholder.svg"} 
-                alt={course.title} 
-                className="h-48 w-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = "/placeholder.svg";
-                }}
-              />
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <CardTitle className="line-clamp-1">{course.title}</CardTitle>
-                <Badge variant={isEnrolled ? "default" : "outline"}>{isEnrolled ? "Enrolled" : course.level}</Badge>
-              </div>
-              <CardDescription className="line-clamp-2 mb-4">{course.description}</CardDescription>
-                <div className="text-sm text-muted-foreground mb-2">Instructor: {course.instructor}</div>
+          return (
+            <Card key={course.id} className="overflow-hidden flex flex-col">
+              <CardHeader className="p-0">
+                <img 
+                  src={course.image || "/placeholder.svg"} 
+                  alt={course.title} 
+                  className="h-32 w-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/placeholder.svg";
+                  }}
+                />
+              </CardHeader>
+              <CardContent className="p-4 flex-grow">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <CardTitle className="text-base line-clamp-1">{course.title}</CardTitle>
+                  <Badge variant={isEnrolled ? "default" : "outline"} className="text-xs">
+                    {isEnrolled ? "Enrolled" : course.level}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs line-clamp-2 mb-2">{course.description}</CardDescription>
+                <div className="text-xs text-muted-foreground">Instructor: {course.instructor}</div>
                 {isEnrolled && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between text-xs">
                       <span>Progress</span>
                       <span>{progress}%</span>
                     </div>
-                    <Progress value={progress} className="h-2" />
+                    <Progress value={progress} className="h-1" />
                   </div>
                 )}
-            </CardContent>
-            <CardFooter className="flex justify-between p-6 pt-0">
-              <Button variant="outline" asChild>
-                <Link href={`/dashboard/courses/${course.id || ''}`}>View Details</Link>
-              </Button>
-              <Button 
-                onClick={() => isEnrolled ? null : openNameDialog(course)} 
-                disabled={isEnrolled || isButtonLoading}
-              >
-                {isButtonLoading ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></span>
-                    Loading...
-                  </>
-                ) : isEnrolled ? "Enrolled" : "Enroll Now"}
-              </Button>
-            </CardFooter>
-          </Card>
-        )
-      })}
+              </CardContent>
+              <CardFooter className="p-4 pt-0 flex gap-2 justify-between mt-auto">
+                <Button variant="outline" size="sm" asChild className="text-xs">
+                  <Link href={`/dashboard/courses/${course.id || ''}`}>Details</Link>
+                </Button>
+                {!isEnrolled && (
+                  <Button 
+                    size="sm"
+                    onClick={() => openNameDialog(course)} 
+                    disabled={isButtonLoading}
+                    className="text-xs"
+                  >
+                    {isButtonLoading ? (
+                      <>
+                        <span className="mr-1 h-3 w-3 animate-spin rounded-full border-b-2 border-current"></span>
+                        Loading
+                      </>
+                    ) : "Enroll"}
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          )
+        })}
       </div>
+
+      {/* Filter Dialog */}
+      <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Filter Courses</DialogTitle>
+            <DialogDescription>
+              Select filters to narrow down course results
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="searchQuery">Search</Label>
+              <Input
+                id="searchQuery"
+                placeholder="Search by title or description"
+                value={tempFilters.searchQuery}
+                onChange={(e) => setTempFilters({...tempFilters, searchQuery: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="durationFilter">Duration</Label>
+                <Select 
+                  value={tempFilters.durationFilter} 
+                  onValueChange={(value) => setTempFilters({...tempFilters, durationFilter: value})}
+                >
+                  <SelectTrigger id="durationFilter">
+                    <SelectValue placeholder="All Durations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Durations</SelectItem>
+                    {uniqueDurations.map(duration => (
+                      <SelectItem key={duration} value={duration}>{duration}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="levelFilter">Level</Label>
+                <Select 
+                  value={tempFilters.levelFilter} 
+                  onValueChange={(value) => setTempFilters({...tempFilters, levelFilter: value})}
+                >
+                  <SelectTrigger id="levelFilter">
+                    <SelectValue placeholder="All Levels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    {uniqueLevels.map(level => (
+                      <SelectItem key={level} value={level}>{level}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="instructorFilter">Instructor</Label>
+              <Select 
+                value={tempFilters.instructorFilter} 
+                onValueChange={(value) => setTempFilters({...tempFilters, instructorFilter: value})}
+              >
+                <SelectTrigger id="instructorFilter">
+                  <SelectValue placeholder="All Instructors" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Instructors</SelectItem>
+                  {uniqueInstructors.map(instructor => (
+                    <SelectItem key={instructor} value={instructor}>{instructor}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex justify-between">
+            <Button variant="outline" onClick={clearFilters}>
+              Reset Filters
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setFilterDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={applyFilters}>
+                Apply Filters
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Real Name Dialog */}
       <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
