@@ -13,7 +13,7 @@ import { hasInstructorPrivileges } from "@/lib/auth-utils"
 import { useToast } from "@/components/ui/use-toast"
 import { Plus, X, Save, Trash2 } from "lucide-react"
 import CourseVideoUploader from "@/components/courses/course-video-uploader"
-import type { Course, Module, Lesson, Resource } from "@/lib/types"
+import type { Course, Module, Lesson, Resource, Question } from "@/lib/types"
 import { fetchInstructors, Instructor } from "@/lib/api"
 
 export default function CreateCoursePage() {
@@ -23,6 +23,7 @@ export default function CreateCoursePage() {
   const { toast } = useToast()
   const [instructors, setInstructors] = useState<Instructor[]>([])
   
+  // Store course data with basic Course type
   const [formData, setFormData] = useState<Course>({
     id: "",
     title: "",
@@ -47,6 +48,16 @@ export default function CreateCoursePage() {
     ],
     resources: [{ title: "", url: "" }]
   });
+  
+  // Store assessment questions separately
+  const [assessmentQuestions, setAssessmentQuestions] = useState<Question[]>([
+    {
+      id: Date.now().toString(),
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: 0
+    }
+  ]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -182,6 +193,64 @@ export default function CreateCoursePage() {
     });
   };
 
+  const handleQuestionChange = (index: number, value: string) => {
+    setAssessmentQuestions(prev => {
+      const updatedQuestions = [...prev];
+      updatedQuestions[index] = {
+        ...updatedQuestions[index],
+        question: value
+      };
+      return updatedQuestions;
+    });
+  };
+
+  const handleOptionChange = (questionIndex: number, optionIndex: number, value: string) => {
+    setAssessmentQuestions(prev => {
+      const updatedQuestions = [...prev];
+      const updatedOptions = [...updatedQuestions[questionIndex].options];
+      updatedOptions[optionIndex] = value;
+      updatedQuestions[questionIndex] = {
+        ...updatedQuestions[questionIndex],
+        options: updatedOptions
+      };
+      return updatedQuestions;
+    });
+  };
+
+  const handleCorrectAnswerChange = (questionIndex: number, value: string) => {
+    setAssessmentQuestions(prev => {
+      const updatedQuestions = [...prev];
+      updatedQuestions[questionIndex] = {
+        ...updatedQuestions[questionIndex],
+        correctAnswer: parseInt(value, 10)
+      };
+      return updatedQuestions;
+    });
+  };
+
+  const addQuestion = () => {
+    setAssessmentQuestions(prev => {
+      const updatedQuestions = [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          question: "",
+          options: ["", "", "", ""],
+          correctAnswer: 0
+        }
+      ];
+      return updatedQuestions;
+    });
+  };
+
+  const removeQuestion = (index: number) => {
+    setAssessmentQuestions(prev => {
+      const updatedQuestions = [...prev];
+      updatedQuestions.splice(index, 1);
+      return updatedQuestions;
+    });
+  };
+
   // Fetch instructors when component mounts
   useEffect(() => {
     const getInstructors = async () => {
@@ -210,8 +279,35 @@ export default function CreateCoursePage() {
       if (!formData.title || !formData.description || !formData.level || !formData.duration || !formData.instructor) {
         throw new Error("Please fill in all required fields");
       }
+      
+      // Filter out invalid questions
+      let validQuestions: Question[] = [];
+      
+      if (assessmentQuestions && assessmentQuestions.length > 0) {
+        // Filter out empty questions
+        validQuestions = assessmentQuestions.filter(q => 
+          q.question.trim() !== '' && 
+          q.options.filter(o => o.trim() !== '').length >= 2
+        );
+        
+        // Check if any questions have empty fields
+        const hasInvalidQuestions = assessmentQuestions.some(q => 
+          q.question.trim() === '' || 
+          q.options.filter(o => o.trim() !== '').length < 2
+        );
+        
+        if (hasInvalidQuestions) {
+          toast({
+            title: "Warning",
+            description: "Some assessment questions are incomplete and will be removed",
+            variant: "default",
+            duration: 5000,
+          });
+        }
+      }
 
-      const response = await fetch("/api/courses/instructor", {
+      // First create the course
+      const courseResponse = await fetch("/api/courses/instructor", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -219,16 +315,46 @@ export default function CreateCoursePage() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!courseResponse.ok) {
+        const errorData = await courseResponse.json();
         throw new Error(errorData.error || "Failed to create course");
       }
 
-      const data = await response.json();
+      const courseResult = await courseResponse.json();
+      const courseId = courseResult.courseId;
+      
+      // If there are valid questions, add them to the questions collection
+      if (validQuestions.length > 0) {
+        const questionsData = {
+          courseId: courseId,
+          questions: validQuestions.map(q => ({
+            ...q,
+            courseId: courseId
+          }))
+        };
+        
+        const questionsResponse = await fetch("/api/questions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(questionsData),
+        });
+        
+        if (!questionsResponse.ok) {
+          // Don't fail the entire operation, but show a warning
+          toast({
+            title: "Warning",
+            description: "Course created, but failed to save assessment questions",
+            variant: "default",
+            duration: 5000,
+          });
+        }
+      }
       
       toast({
         title: "Course Created",
-        description: data.message,
+        description: courseResult.message,
       });
 
       // Redirect to the dashboard after success
@@ -606,6 +732,82 @@ export default function CreateCoursePage() {
               className="flex items-center gap-1"
             >
               <Plus className="h-4 w-4" /> Add Resource
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Assessment Questions</CardTitle>
+            <CardDescription>
+              Create quiz questions to assess student learning
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {assessmentQuestions.map((question, questionIndex) => (
+              <div key={`question-${questionIndex}`} className="space-y-4 border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">Question {questionIndex + 1}</h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => removeQuestion(questionIndex)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor={`question-${questionIndex}`}>Question</Label>
+                  <Textarea
+                    id={`question-${questionIndex}`}
+                    value={question.question}
+                    onChange={(e) => handleQuestionChange(questionIndex, e.target.value)}
+                    placeholder="Enter your question here"
+                    rows={2}
+                  />
+                </div>
+                
+                <div className="space-y-4">
+                  <Label>Options</Label>
+                  {question.options.map((option, optionIndex) => (
+                    <div key={`option-${questionIndex}-${optionIndex}`} className="flex items-center gap-2">
+                      <div className="flex-grow">
+                        <Input
+                          id={`option-${questionIndex}-${optionIndex}`}
+                          value={option}
+                          onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
+                          placeholder={`Option ${optionIndex + 1}`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="radio" 
+                          id={`correct-${questionIndex}-${optionIndex}`}
+                          name={`correct-answer-${questionIndex}`}
+                          checked={question.correctAnswer === optionIndex}
+                          onChange={() => handleCorrectAnswerChange(questionIndex, optionIndex.toString())}
+                          className="mr-1"
+                          aria-label={`Mark option ${optionIndex + 1} as correct answer`}
+                        />
+                        <Label htmlFor={`correct-${questionIndex}-${optionIndex}`} className="text-sm">
+                          Correct
+                        </Label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addQuestion}
+              className="flex items-center gap-1"
+            >
+              <Plus className="h-4 w-4" /> Add Question
             </Button>
           </CardContent>
         </Card>
