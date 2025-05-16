@@ -19,7 +19,7 @@ export async function POST(
       )
     }
 
-    const courseId = params.courseId
+    const { courseId } = params
     const { db } = await connectToDatabase()
     
     // Check if the course exists
@@ -89,7 +89,7 @@ export async function GET(
       )
     }
 
-    const courseId = params.courseId
+    const { courseId } = params
     
     if (!courseId) {
       return NextResponse.json(
@@ -140,7 +140,7 @@ export async function DELETE(
       )
     }
 
-    const courseId = params.courseId
+    const { courseId } = params
     
     if (!courseId) {
       return NextResponse.json(

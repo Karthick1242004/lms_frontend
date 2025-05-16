@@ -35,6 +35,9 @@ export async function GET(
       )
     }
 
+    // Extract courseId from params
+    const { courseId } = params
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -45,7 +48,7 @@ export async function GET(
     // Check if user is enrolled in the course
     const isEnrolled = await db.collection("enrollments").findOne({
       userId: session.user.email,
-      courseId: params.courseId
+      courseId: courseId
     })
     
     if (!isEnrolled) {
@@ -57,11 +60,11 @@ export async function GET(
     
     // Get total count for pagination
     const totalCount = await db.collection("course_discussions")
-      .countDocuments({ courseId: params.courseId })
+      .countDocuments({ courseId: courseId })
     
     // Fetch messages with pagination
     const messages = await db.collection("course_discussions")
-      .find({ courseId: params.courseId })
+      .find({ courseId: courseId })
       .sort({ timestamp: -1 }) // most recent first
       .skip(skip)
       .limit(limit)
@@ -111,6 +114,9 @@ export async function POST(
       )
     }
     
+    // Extract courseId from params
+    const { courseId } = params
+    
     const { content } = await request.json()
     
     if (!content || typeof content !== "string") {
@@ -133,7 +139,7 @@ export async function POST(
     // Check if user is enrolled in the course
     const isEnrolled = await db.collection("enrollments").findOne({
       userId: session.user.email,
-      courseId: params.courseId
+      courseId: courseId
     })
     
     if (!isEnrolled) {
@@ -146,7 +152,7 @@ export async function POST(
     // Anti-spam check - rate limiting
     const recentMessages = await db.collection("course_discussions").countDocuments({
       userId: session.user.email,
-      courseId: params.courseId,
+      courseId: courseId,
       timestamp: { $gte: new Date(Date.now() - 10000).toISOString() } // last 10 seconds
     })
     
@@ -170,7 +176,7 @@ export async function POST(
     
     // Insert the message
     const result = await db.collection("course_discussions").insertOne({
-      courseId: params.courseId,
+      courseId: courseId,
       userId: session.user.email,
       userName: user?.realName || user?.name,
       content: content,

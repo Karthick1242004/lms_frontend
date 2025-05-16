@@ -279,7 +279,7 @@ export default function CreateCoursePage() {
       if (!formData.title || !formData.description || !formData.level || !formData.duration || !formData.instructor) {
         throw new Error("Please fill in all required fields");
       }
-      
+
       // Filter out invalid questions
       let validQuestions: Question[] = [];
       

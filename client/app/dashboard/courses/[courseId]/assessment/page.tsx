@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
@@ -30,7 +30,10 @@ interface Question {
 export default function AssessmentPage({ params }: AssessmentPageProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const courseId = params.courseId
+  
+  // Access the courseId parameter using the useParams hook
+  const routeParams = useParams()
+  const courseId = routeParams.courseId as string
   
   // States
   const [isFullscreen, setIsFullscreen] = useState(false)

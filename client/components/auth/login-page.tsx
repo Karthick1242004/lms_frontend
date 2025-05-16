@@ -203,7 +203,7 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-purple-900/40" /> {/* Overlay */}
         </div>
         <div className="relative z-10 flex flex-col justify-between w-full p-12">
-          <div className="text-white text-3xl flex flex-row items-center gap-3 font-bold">
+          <div className="text-white text-3xl w-full flex flex-row items-center gap-3 font-bold">
           <img src='https://folio-lynkr-main.vercel.app/_next/image?url=%2FFolio%20black%20circle.png&w=96&q=75' alt="Logo" className="h-14 w-14"></img>Quantum Path
           </div>
           <div className="space-y-4">

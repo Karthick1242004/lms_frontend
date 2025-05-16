@@ -18,7 +18,8 @@ export async function GET(
       )
     }
 
-    const courseId = params.courseId
+    // Extract courseId from params object - avoids direct access warning
+    const { courseId } = params
     
     // Connect to the database
     const { db } = await connectToDatabase()
@@ -122,7 +123,8 @@ export async function POST(
       )
     }
 
-    const courseId = params.courseId
+    // Extract courseId from params object - avoids direct access warning
+    const { courseId } = params
     const { answers } = await request.json()
     
     if (!answers || !Array.isArray(answers)) {
