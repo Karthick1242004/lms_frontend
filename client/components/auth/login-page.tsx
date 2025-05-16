@@ -204,7 +204,7 @@ export default function LoginPage() {
         </div>
         <div className="relative z-10 flex flex-col justify-between w-full p-12">
           <div className="text-white text-3xl flex flex-row items-center gap-3 font-bold">
-          <img src='https://folio-lynkr-main.vercel.app/_next/image?url=%2FFolio%20black%20circle.png&w=96&q=75' alt="Logo" className="h-14 w-14"></img>Quantam Path
+          <img src='https://folio-lynkr-main.vercel.app/_next/image?url=%2FFolio%20black%20circle.png&w=96&q=75' alt="Logo" className="h-14 w-14"></img>Quantum Path
           </div>
           <div className="space-y-4">
             <h1 className="text-4xl font-bold text-white">
@@ -224,7 +224,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <Card className="w-full">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl text-center">Quantam Path</CardTitle>
+              <CardTitle className="text-2xl text-center">Quantum Path</CardTitle>
               <CardDescription className="text-center">
                 Sign in to access your courses and learning materials
               </CardDescription>

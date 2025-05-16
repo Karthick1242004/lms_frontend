@@ -55,7 +55,7 @@ export default function DashboardSidebar() {
             <span className={cn("text-xl transition-opacity", 
               state === "collapsed" ? "opacity-0" : "opacity-100"
             )}>
-              Quantam Path
+              Quantum Path
             </span>
           </Link>
           {/* <SidebarTrigger className="h-8 w-8 shrink-0 rounded-md border bg-sidebar p-0">
@@ -231,7 +231,7 @@ export default function DashboardSidebar() {
         )}
         {state === "expanded" ? 
         <div className="text-xs text-muted-foreground">
-          <p>© 2025 Quantam Path</p>
+          <p>© 2025 Quantum Path</p>
           <p>Version 1.0.0</p>
         </div>: <div className="text-xs flex justify-center text-muted-foreground"><p>© V.1.0</p></div>
 }
