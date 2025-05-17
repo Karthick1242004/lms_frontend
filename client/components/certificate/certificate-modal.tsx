@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -19,7 +19,6 @@ interface CertificateModalProps {
   completionDate: Date
   certificateId: string
   courseId: string
-  score?: number
 }
 
 export default function CertificateModal({
@@ -30,8 +29,7 @@ export default function CertificateModal({
   instructorName,
   completionDate,
   certificateId,
-  courseId,
-  score
+  courseId
 }: CertificateModalProps) {
   const { toast } = useToast()
   const certificateRef = useRef<HTMLDivElement>(null)
@@ -39,6 +37,33 @@ export default function CertificateModal({
   const [isGeneratingClientPDF, setIsGeneratingClientPDF] = useState(false)
   const [showDebugDownload, setShowDebugDownload] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [assessmentScore, setAssessmentScore] = useState<number | undefined>()
+
+  // Fetch assessment score when modal opens
+  useEffect(() => {
+    const fetchAssessmentScore = async () => {
+      try {
+        const response = await fetch(`/api/user/assessments`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch assessment results')
+        }
+        const data = await response.json()
+        
+        // Find the score for this specific course
+        const courseResult = data.results.find((result: any) => result.courseId === courseId)
+        if (courseResult) {
+          setAssessmentScore(courseResult.score)
+        }
+      } catch (error) {
+        console.error('Error fetching assessment score:', error)
+        // Don't show error toast as this is not critical
+      }
+    }
+
+    if (isOpen) {
+      fetchAssessmentScore()
+    }
+  }, [isOpen, courseId])
 
   // Function to generate PDF on the client side
   const handleClientSidePDF = async () => {
@@ -126,7 +151,7 @@ export default function CertificateModal({
         courseName,
         instructorName,
         courseId,
-        score
+        score: assessmentScore
       });
       
       // Generate PDF on the server
@@ -142,7 +167,7 @@ export default function CertificateModal({
           completionDate,
           certificateId,
           courseId,
-          score
+          score: assessmentScore
         }),
       })
       
@@ -300,7 +325,7 @@ export default function CertificateModal({
               instructorName={instructorName}
               completionDate={completionDate}
               certificateId={certificateId}
-              score={score}
+              score={assessmentScore}
             />
           </div>
         </div>
