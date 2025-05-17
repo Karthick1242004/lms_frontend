@@ -19,6 +19,7 @@ interface CertificateModalProps {
   completionDate: Date
   certificateId: string
   courseId: string
+  score?: number
 }
 
 export default function CertificateModal({
@@ -29,7 +30,8 @@ export default function CertificateModal({
   instructorName,
   completionDate,
   certificateId,
-  courseId
+  courseId,
+  score
 }: CertificateModalProps) {
   const { toast } = useToast()
   const certificateRef = useRef<HTMLDivElement>(null)
@@ -123,7 +125,8 @@ export default function CertificateModal({
         userName,
         courseName,
         instructorName,
-        courseId
+        courseId,
+        score
       });
       
       // Generate PDF on the server
@@ -138,7 +141,8 @@ export default function CertificateModal({
           instructorName,
           completionDate,
           certificateId,
-          courseId
+          courseId,
+          score
         }),
       })
       
@@ -296,6 +300,7 @@ export default function CertificateModal({
               instructorName={instructorName}
               completionDate={completionDate}
               certificateId={certificateId}
+              score={score}
             />
           </div>
         </div>

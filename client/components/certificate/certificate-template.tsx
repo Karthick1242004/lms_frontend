@@ -10,6 +10,7 @@ interface CertificateTemplateProps {
   instructorName: string
   completionDate?: Date
   certificateId: string
+  score?: number
   className?: string
 }
 
@@ -24,9 +25,11 @@ const CertificateTemplate = React.forwardRef<
       instructorName,
       completionDate,
       certificateId,
+      score,
       className,
     },
     ref
+
   ) => {
     return (
       <div 
@@ -47,12 +50,38 @@ const CertificateTemplate = React.forwardRef<
         {/* Certificate Content */}
         <div className="flex flex-col items-center justify-between h-full py-12 px-16 relative z-10">
           <div className="text-center">
-            <h1 className="text-5xl font-bold text-amber-800 mb-3">Certificate of Completion</h1>
+            <h1 className="text-5xl font-bold text-amber-800 mb-3">Certificate1 of Completion</h1>
             <div className="w-96 h-1 bg-amber-800 mx-auto mb-8"></div>
             <p className="text-xl text-gray-600 italic mb-6">This is to certify that</p>
             <h2 className="text-4xl font-bold text-amber-900 mb-4 font-script">{userName}</h2>
-            <p className="text-xl text-gray-600 italic mb-6">has successfully completed the course</p>
+            <p className="text-xl text-gray-600 italic mb-6">
+              has successfully completed the course
+              {score !== undefined && (
+                <span className="block mt-2 text-2xl font-semibold text-amber-700">
+                  with a score of {score}%
+                </span>
+              )}
+            </p>
             <h3 className="text-3xl font-bold text-amber-900 mb-10 px-10">{courseName}</h3>
+            
+            {/* Assessment Score Section */}
+            {score !== undefined && (
+              <div className="mt-4 mb-8 p-4 border-2 border-amber-200 rounded-lg bg-amber-50">
+                <p className="text-lg text-gray-700 mb-2">Assessment Score</p>
+                <div className="flex items-center justify-center">
+                  <div className="relative w-32 h-32 rounded-full border-4 border-amber-300 flex items-center justify-center">
+                    <span className="text-4xl font-bold text-amber-800">{score}%</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {score >= 90 ? 'Outstanding Achievement' :
+                   score >= 80 ? 'Excellent Performance' :
+                   score >= 70 ? 'Very Good Performance' :
+                   score >= 60 ? 'Good Performance' :
+                   'Satisfactory Performance'}
+                </p>
+              </div>
+            )}
           </div>
           
           <div className="w-full flex justify-between items-end mt-8">
