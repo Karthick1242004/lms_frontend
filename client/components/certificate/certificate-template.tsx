@@ -84,7 +84,7 @@ const CertificateTemplate = React.forwardRef<
             )}
           </div>
           
-          <div className="w-full flex justify-between items-end mt-8">
+          <div className="w-full flex justify-between items-end mt-[-5%]">
             <div className="text-center">
               <div className="w-64 h-px bg-gray-400 mb-2"></div>
               <p className="text-lg text-gray-700">{instructorName}</p>
