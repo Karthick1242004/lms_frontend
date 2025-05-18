@@ -42,7 +42,7 @@ export default function AIAssistantPage() {
   const [activeChat, setActiveChat] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [chatToDelete, setChatToDelete] = useState<string | null>(null)
-  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false)
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true)
 
   useEffect(() => {
     if (status === "unauthenticated") {
