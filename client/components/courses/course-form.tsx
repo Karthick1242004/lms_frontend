@@ -26,6 +26,12 @@ interface CourseFormProps {
     duration: string
     language: string
     certificate: boolean
+    videos?: {
+      id: string
+      title: string
+      description: string
+      url: string
+    }[]
   }
   isEditing?: boolean
 }
@@ -43,6 +49,7 @@ export default function CourseForm({ initialData, isEditing = false }: CourseFor
     duration: initialData?.duration || "",
     language: initialData?.language || "English",
     certificate: initialData?.certificate || false,
+    videos: initialData?.videos || []
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +88,108 @@ export default function CourseForm({ initialData, isEditing = false }: CourseFor
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleVideoUpload = async (file: File) => {
+    try {
+      const urlResponse = await fetch(
+        `/api/upload-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`
+      )
+      
+      if (!urlResponse.ok) {
+        throw new Error("Failed to get upload URL")
+      }
+      
+      const { uploadUrl, publicUrl } = await urlResponse.json()
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload video")
+      }
+
+      return publicUrl
+    } catch (error) {
+      console.error("Error uploading video:", error)
+      throw error
+    }
+  }
+
+  const handleAddVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const videoUrl = await handleVideoUpload(file)
+      
+      setFormData(prev => ({
+        ...prev,
+        videos: [
+          ...prev.videos,
+          {
+            id: crypto.randomUUID(),
+            title: file.name,
+            description: "",
+            url: videoUrl
+          }
+        ]
+      }))
+
+      toast({
+        title: "Success",
+        description: "Video uploaded successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload video. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteVideo = async (videoId: string) => {
+    try {
+      const video = formData.videos.find(v => v.id === videoId)
+      if (!video) return
+
+      // Delete from storage
+      await fetch(`/api/videos/${encodeURIComponent(video.url)}`, {
+        method: "DELETE",
+      })
+
+      // Remove from form data
+      setFormData(prev => ({
+        ...prev,
+        videos: prev.videos.filter(v => v.id !== videoId)
+      }))
+
+      toast({
+        title: "Success",
+        description: "Video deleted successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete video. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleUpdateVideo = (videoId: string, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      videos: prev.videos.map(video => 
+        video.id === videoId ? { ...video, [field]: value } : video
+      )
+    }))
   }
 
   return (
@@ -182,6 +291,70 @@ export default function CourseForm({ initialData, isEditing = false }: CourseFor
               title="Offer certificate upon completion"
             />
             <Label htmlFor="certificate">Offer certificate upon completion</Label>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>Course Videos</Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleAddVideo}
+                  className="hidden"
+                  id="video-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("video-upload")?.click()}
+                >
+                  Add Video
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {formData.videos.map((video) => (
+                <Card key={video.id}>
+                  <CardContent className="p-4">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Video Title</Label>
+                        <Input
+                          value={video.title}
+                          onChange={(e) => handleUpdateVideo(video.id, "title", e.target.value)}
+                          placeholder="Enter video title"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Description</Label>
+                        <Textarea
+                          value={video.description}
+                          onChange={(e) => handleUpdateVideo(video.id, "description", e.target.value)}
+                          placeholder="Enter video description"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-muted-foreground truncate">
+                          {video.url}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteVideo(video.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
